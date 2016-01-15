@@ -1,5 +1,5 @@
 # xideco
-![](https://github.com/MrYsLab/xideco/blob/master/documentation/kids.jpg)
+![](https://github.com/MrYsLab/xideco/blob/master/documentation/images/kids.jpg)
 ##A Cross-Platform Interconnect Distributed Eco system
 
 
