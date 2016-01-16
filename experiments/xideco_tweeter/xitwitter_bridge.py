@@ -39,7 +39,7 @@ from xideco.data_files.port_map import port_map
 # noinspection PyMethodMayBeStatic,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
 class TwitterBridge:
     """
-    The Arduino Bridge provides the protocol bridge between Xideco and Firmata
+    The Twitter Bridge provides the protocol bridge between Xideco and a Twitter generation request from Scratch
     """
     def __init__(self):
         """
@@ -64,18 +64,17 @@ class TwitterBridge:
 
         # noinspection PyBroadException
         try:
-            z = self.subscriber.recv_multipart(zmq.NOBLOCK)
-            self.payload = umsgpack.unpackb(z[1])
-            print("[%s] %s" % (z[0], self.payload))
+            msg = self.subscriber.recv_multipart(zmq.NOBLOCK)
+            self.payload = umsgpack.unpackb(msg[1])
+            print("[%s] %s" % (msg[0], self.payload))
             message = self.payload["message"]
             print(message)
 
             command = 'twitter -eMisterYsLab@gmail.com set %s' % message
-            subprocess.call(command, shell=True)
+            # subprocess.call(command, shell=True)
             time.sleep(.001)
-        except:
+        except zmq.error.Again:
             time.sleep(.001)
-            # return
 
 
     def clean_up(self):

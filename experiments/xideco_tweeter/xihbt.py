@@ -133,11 +133,21 @@ class HttpBridge:
         return srv
 
     async def tweet(self, request):
-        print(request)
+        """
+        Create a tweet command message
+        :param request: command and data from GET request
+        :return: HTTP response
+        """
+        # retrieve the users tweet text  from the GET request
         message = request.match_info.get('message')
+
+        # print the message for debug purposes
         print(message)
-        command = "tweet"
+
+        # create a msgpack message for the text
         command_msg = umsgpack.packb({u"message":message})
+
+        # Use the pseudo board 100 for message envelope and send the message to the router
         await self.send_command_to_router("100", command_msg)
         return web.Response(body="ok".encode('utf-8'))
 
