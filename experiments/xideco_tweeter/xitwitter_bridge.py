@@ -20,15 +20,11 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
-import argparse
 import signal
-import sys
 
 import umsgpack
 # noinspection PyPackageRequirements
 import zmq
-from pymata_aio.constants import Constants
-from pymata_aio.pymata3 import PyMata3
 import time
 import subprocess
 import sys
@@ -41,6 +37,7 @@ class TwitterBridge:
     """
     The Twitter Bridge provides the protocol bridge between Xideco and a Twitter generation request from Scratch
     """
+
     def __init__(self):
         """
         :param pymata_board: Pymata-aio instance
@@ -54,6 +51,8 @@ class TwitterBridge:
         connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
             'command_publisher_port']
         self.subscriber.connect(connect_string)
+
+        self.payload = ""
 
         # subscribe to the "twitter topic"
         env_string = "A100"
@@ -75,7 +74,6 @@ class TwitterBridge:
             time.sleep(.001)
         except zmq.error.Again:
             time.sleep(.001)
-
 
     def clean_up(self):
         """

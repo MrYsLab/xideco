@@ -145,12 +145,11 @@ class HttpBridge:
         print(message)
 
         # create a msgpack message for the text
-        command_msg = umsgpack.packb({u"message":message})
+        command_msg = umsgpack.packb({u"message": message})
 
         # Use the pseudo board 100 for message envelope and send the message to the router
         await self.send_command_to_router("100", command_msg)
         return web.Response(body="ok".encode('utf-8'))
-
 
     async def setup_digital_pin(self, request):
         """
