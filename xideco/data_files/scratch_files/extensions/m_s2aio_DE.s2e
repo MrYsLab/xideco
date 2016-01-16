@@ -1,0 +1,118 @@
+{
+    "extensionName": "Xideco",
+    "extensionPort": 50208,
+    "url": "https://github.com/MrYsLab/xideco",
+    "blockSpecs": [
+        [
+            " ",
+            "%m.board_number  %m.pin_state DigitalPIN %n als %m.digital_pin_mode",
+            "digital_pin_mode",
+            "1",
+            "Setze",
+            "PIN",
+            "Eingang"
+        ],
+        [
+            " ",
+            "%m.board_number  %m.pin_state AnalogPIN (A) %n als Eingang",
+            "analog_pin_mode",
+            "1",
+            "Setze",
+            "PIN"
+        ],
+        [
+            "",
+            "%m.board_number Setze Digitalwert an PIN %n zu %m.high_low",
+            "digital_write",
+            "1",
+            "PIN",
+            0
+        ],
+        [
+            "",
+            "%m.board_number Setze Analogwert (PWM) an PIN %n zu %n",
+            "analog_write",
+            "1",
+            "PIN",
+            "VAL"
+        ],
+        [
+            "",
+            "%m.board_number Erzeuge Ton an PIN: %n HZ: %n für MS: %n",
+            "play_tone",
+            "1",
+            "PIN",
+            1000,
+            500
+        ],
+        [
+            "",
+            "%m.board_number Schalte Ton an PIN %n aus",
+            "tone_off",
+            "1",
+            "PIN"
+        ],
+        [
+            "",
+            "%m.board_number Bewege Servo an PIN %n zu Position %n Grad",
+            "set_servo_position",
+            "1",
+            "PIN",
+            90
+        ],
+        [
+            "r",
+            "%m.board_number Lese DigitalPIN %n",
+            "digital_read",
+            "1",
+            "PIN"
+        ],
+        [
+            "r",
+            "%m.board_number Lese AnalogPIN (A) %n",
+            "analog_read",
+            "1",
+            "PIN"
+        ],
+        [
+            "r",
+            "%m.board_number Debuggen",
+            "problem",
+            "1"
+        ]
+    ],
+    "menus": {
+        "pin_state": [
+            "Setze",
+            "Deaktiviere"
+        ],
+        "digital_pin_mode": [
+            "Eingang",
+            "Ausgang",
+            "PWM",
+            "Servo",
+            "Ton",
+            "Ultraschall"
+        ],
+        "high_low": [
+            "0",
+            "1"
+        ],
+        "off_on": [
+            "Nein",
+            "Ja"
+        ],
+        "board_number": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10"
+        ]
+    }
+}

@@ -1,0 +1,118 @@
+{
+    "extensionName": "Xideco",
+    "extensionPort": 50208,
+    "url": "https://github.com/MrYsLab/xideco",
+    "blockSpecs": [
+        [
+            " ",
+            "%m.board_number %m.pin_state Ψηφιακό PIN %n για %m.digital_pin_mode",
+            "digital_pin_mode",
+            "1",
+            "Ενεργοποίηση",
+            "PIN",
+            "Είσοδο"
+        ],
+        [
+            " ",
+            "%m.board_number %m.pin_state Αναλογικό PIN (A) %n για Είσοδο",
+            "analog_pin_mode",
+            "1",
+            "Ενεργοποίηση",
+            "PIN"
+        ],
+        [
+            "",
+            "%m.board_number Ψηφιακή Εγγραφή όρισε Pin %n σε %m.high_low",
+            "digital_write",
+            "1",
+            "PIN",
+            0
+        ],
+        [
+            "",
+            "%m.board_number Αναλογική Εγγραφή (PWM) όρισε Pin %n σε %n",
+            "analog_write",
+            "1",
+            "PIN",
+            "VAL"
+        ],
+        [
+            "",
+            "%m.board_number Παίξε τόνο στο Pin: %n HZ: %n για ms: %n",
+            "play_tone",
+            "1",
+            "PIN",
+            1000,
+            500
+        ],
+        [
+            "",
+            "%m.board_number Σταμάτησε τόνο στο Pin: %n",
+            "tone_off",
+            "1",
+            "PIN"
+        ],
+        [
+            "",
+            "%m.board_number Μετακίνησε το Σέρβο στο Pin %n κατά μοίρες: %n",
+            "set_servo_position",
+            "1",
+            "PIN",
+            90
+        ],
+        [
+            "r",
+            "%m.board_number Διάβασε Ψηφιακή Είσοδο στο Pin %n",
+            "digital_read",
+            "1",
+            "PIN"
+        ],
+        [
+            "r",
+            "%m.board_number Διάβασε Αναλογική Είσοδο στο Pin (A) %n",
+            "analog_read",
+            "1",
+            "PIN"
+        ],
+        [
+            "r",
+            "%m.board_number Αποσφαλματωτής",
+            "problem",
+            "1",
+        ]
+    ],
+    "menus": {
+        "pin_state": [
+            "Ενεργοποίηση",
+            "Απενεργοποίηση"
+        ],
+        "digital_pin_mode": [
+            "Είσοδο",
+            "Έξοδο",
+            "PWM",
+            "Σέρβο",
+            "Τόνος",
+            "Σόναρ"
+        ],
+        "high_low": [
+            "0",
+            "1"
+        ],
+        "off_on": [
+            "Κλείσιμο",
+            "Άνοιγμα"
+        ],
+        "board_number": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10"
+        ]
+    }
+}

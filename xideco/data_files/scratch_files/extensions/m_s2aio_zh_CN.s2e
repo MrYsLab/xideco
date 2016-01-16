@@ -1,0 +1,118 @@
+﻿{
+    "extensionName": "Xideco",
+    "extensionPort": 50208,
+    "url": "https://github.com/MrYsLab/xideco",
+    "blockSpecs": [
+        [
+            " ",
+            "%m.board_number 设置 %m.pin_state : 数字引脚 %n 为 %m.digital_pin_mode",
+            "digital_pin_mode",
+            "1",
+            "允许",
+            "引脚号",
+            "输入"
+        ],
+        [
+            " ",
+            "%m.board_number 设置 %m.pin_state : 模拟引脚(A) %n 为 输入",
+            "analog_pin_mode",
+            "1",
+            "允许",
+            "引脚号"
+        ],
+        [
+            "",
+            "%m.board_number 数字脚输出: 设置引脚 %n 为 %m.high_low",
+            "digital_write",
+            "1",
+            "引脚号",
+            0
+        ],
+        [
+            "",
+            "%m.board_number 模拟输出 (PWM): 设置引脚 %n 的值为  %n",
+            "analog_write",
+            "1",
+            "引脚号",
+            "数量值"
+        ],
+        [
+            "",
+            "%m.board_number 在引脚 %n 演奏 ,频率为: %n Hz ,时长为 : %n ms",
+            "play_tone",
+            "1",
+            "引脚号",
+            1000,
+            500
+        ],
+        [
+            "",
+            "%m.board_number 关闭引脚 %n 的音调",
+            "tone_off",
+            "1",
+            "引脚号"
+        ],
+        [
+            "",
+            "%m.board_number 设置第 %n 脚为舵机输出 转动角度为 %n",
+            "set_servo_position",
+            "1",
+            "引脚号",
+            90
+        ],
+        [
+            "r",
+            "%m.board_number 读取数字脚 %n 的值",
+            "digital_read",
+            "1",
+            "引脚号"
+        ],
+        [
+            "r",
+            "%m.board_number 读取模拟脚(A) %n 的值",
+            "analog_read",
+            "1",
+            "引脚号"
+        ],
+        [
+            "r",
+            "%m.board_number 调试",
+            "problem",
+            "1"
+        ]
+    ],
+    "menus": {
+        "pin_state": [
+            "允许",
+            "禁止"
+        ],
+        "digital_pin_mode": [
+            "输入",
+            "输出",
+            "PWM",
+            "舵机",
+            "音调",
+            "超声波"
+        ],
+        "high_low": [
+            "0",
+            "1"
+        ],
+        "off_on": [
+            "关",
+            "开"
+        ],
+        "board_number": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10"
+        ]
+    }
+}
