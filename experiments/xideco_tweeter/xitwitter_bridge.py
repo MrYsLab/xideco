@@ -69,7 +69,7 @@ class TwitterBridge:
             message = self.payload["message"]
             print(message)
 
-            command = 'twitter -eMisterYsLab@gmail.com set %s' % message
+            command = 'twitter -eYOU@email.com set %s' % message
             subprocess.call(command, shell=True)
             time.sleep(.001)
         except zmq.error.Again:
