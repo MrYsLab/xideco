@@ -71,7 +71,7 @@ class TwitterBridge:
             print(message)
 
             command = 'twitter -eMisterYsLab@gmail.com set %s' % message
-            # subprocess.call(command, shell=True)
+            subprocess.call(command, shell=True)
             time.sleep(.001)
         except zmq.error.Again:
             time.sleep(.001)
