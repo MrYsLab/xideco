@@ -1,12 +1,15 @@
 # xideco
 ![](https://github.com/MrYsLab/xideco/blob/master/documentation/images/kids.jpg)
-##A Cross-Platform Interconnect Distributed Eco system
 
+##A Network Enabled Software Backplane
+
+Xideco 
 
     
-xideco is pronounced like _*zydeco*_
-    Zydeco is a kind of American dance music originally from southern Louisiana, typically featuring accordion and guitar. 
+Xideco is pronounced like _*Zydeco*_
+
+Zydeco is a type of American dance music that originated in southern Louisiana.
        
 Artwork from http://www.terrancesimien.com/creole-for-kidz/
 
-# UNDER CONSTRUCTION soon to be completed
+For installation instructions, go to the [Xideco Wiki.](https://github.com/MrYsLab/xideco/wiki)
