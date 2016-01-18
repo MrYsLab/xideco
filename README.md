@@ -5,7 +5,7 @@
 
 
 
-#This is a work in progress and the software will be available very soon.
+Read about Xideco on the blog.
 
     
 Xideco is pronounced like _*Zydeco*_, a type of American dance music that originated in southern Louisiana.
