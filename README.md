@@ -1,7 +1,9 @@
 # Xideco
-![](https://github.com/MrYsLab/xideco/blob/master/documentation/images/kids.jpg)
 
 ##A Network Enabled Software Backplane
+![](https://github.com/MrYsLab/xideco/blob/master/documentation/images/kids.jpg)
+
+
 
 #This is a work in progress and the software will be available very soon.
 
