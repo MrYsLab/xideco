@@ -25,8 +25,6 @@ import signal
 import sys
 import atexit
 
-import atexit
-
 import pigpio
 
 import umsgpack
@@ -53,7 +51,15 @@ class RaspberryPiBridge:
 
         self.board_num = board_num
         self.pi = pi
-        atexit.register(self.cleanup)
+        print("board num: " + board_num)
+        hw_rev = self.pi.get_hardware_revision()
+        print('HW REV: ' + str(hw_rev))
+
+        pigpio_ver = self.pi.get_pigpio_version()
+        print('PIGPIO REV: ' + str(pigpio_ver))
+
+    def cbf(self, gpio, level, tick):
+        print(gpio, level, tick)
 
 
     #     # lists of digital pin capabilities
@@ -438,22 +444,28 @@ class RaspberryPiBridge:
     #     envelope = ("B" + self.board_num).encode()
     #     self.publisher.send_multipart([envelope, analog_reply_msg])
     #
-    # def run_arduino_bridge(self):
-    #
-    #     # noinspection PyBroadException
-    #     try:
-    #         z = self.subscriber.recv_multipart(zmq.NOBLOCK)
-    #         self.payload = umsgpack.unpackb(z[1])
-    #         # print("[%s] %s" % (z[0], self.payload))
-    #         command = self.payload['command']
-    #         if command in self.command_dict:
-    #             self.command_dict[command]()
-    #         else:
-    #             print("can't execute unknown command'")
-    #         self.board.sleep(.001)
-    #     except:
-    #         self.board.sleep(.001)
-    #         # return
+    def run_raspberry_bridge(self):
+        self.pi.set_mode( 11, pigpio.INPUT)
+        cb1 = self.pi.callback(11, pigpio.EITHER_EDGE, self.cbf)
+        while True:
+            pass
+
+
+
+        # noinspection PyBroadException
+        # try:
+        #     z = self.subscriber.recv_multipart(zmq.NOBLOCK)
+        #     self.payload = umsgpack.unpackb(z[1])
+        #     print("[%s] %s" % (z[0], self.payload))
+        #     command = self.payload['command']
+        #     if command in self.command_dict:
+        #         self.command_dict[command]()
+        #     else:
+        #         print("can't execute unknown command'")
+        #     self.board.sleep(.001)
+        # except:
+        #     self.board.sleep(.001)
+        #     return
     #
     # def get_pin_capabilities(self):
     #     """
@@ -523,52 +535,56 @@ class RaspberryPiBridge:
     #     envelope = ("B" + self.board_num).encode()
     #     self.publisher.send_multipart([envelope, problem])
 
-    def clean_up(self):
-        """
-        Clean things up on exit
-        :return:
-        """
-        self.subscriber.close()
-        self.publisher.close()
-        self.context.term()
-        self.pi.close()
+    def cleanup(self):
+        print('cleaning up')
+        self.pi.stop()
 
 
-def raspberryP_br():
+
+
+def raspberrypi_bridge():
     # noinspection PyShadowingNames
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", dest="board_number", default="1", help="Board Number - 1 through 10")
-    parser.add_argument("-p", dest="comport", default="None", help="Arduino COM port - e.g. /dev/ttyACMO or COM3")
+    # parser.add_argument("-p", dest="comport", default="None", help="Arduino COM port - e.g. /dev/ttyACMO or COM3")
 
     args = parser.parse_args()
-    if args.comport == "None":
-        pymata_board = PyMata3()
-    else:
-        pymata_board = PyMata3(com_port=args.comport)
+
+    pi = pigpio.pi()
 
     board_num = args.board_number
-    abridge = ArduinoBridge(pymata_board, board_num)
-    while True:
-        abridge.run_arduino_bridge()
+    rbridge = RaspberryPiBridge(pi, board_num)
+    #while True:
+        #rbridge.run_raspberry_bridge()
+    try:
+        rbridge.run_raspberry_bridge()
+    except:
+        print('done done')
+        rbridge.cleanup()
+        # pi.stop()
+        sys.exit(0)
+
+
+
 
     # signal handler function called when Control-C occurs
     # noinspection PyShadowingNames,PyUnusedLocal,PyUnusedLocal
     def signal_handler(signal, frame):
         print("Control-C detected. See you soon.")
-
-        abridge.clean_up()
-
-        sys.exit(0)
-
+        time.sleep(5)
+    #
+        rbridge.clean_up()
+    #
+        # sys.exit(0)
+    #
     # listen for SIGINT
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
 
 if __name__ == "__main__":
-
-    try:
-        arduino_bridge()
-    except KeyboardInterrupt:
-        sys.exit(0)
+    # try:
+        raspberrypi_bridge()
+    # except KeyboardInterrupt:
+    #     sys.exit(0)
