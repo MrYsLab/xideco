@@ -23,11 +23,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 import argparse
 import signal
 import sys
-import atexit
+import time
 
 import pigpio
-
 import umsgpack
+
 # noinspection PyPackageRequirements
 import zmq
 # from pymata_aio.constants import Constants
@@ -42,6 +42,7 @@ class RaspberryPiBridge:
     The Raspberry Bridge provides the protocol bridge between Xideco and a Raspberry Pi board using the
     pigpio library https://github.com/joan2937/pigpio
     """
+
     def __init__(self, pi, board_num):
         """
         :param pigpio: pigpio instance
@@ -58,21 +59,18 @@ class RaspberryPiBridge:
         pigpio_ver = self.pi.get_pigpio_version()
         print('PIGPIO REV: ' + str(pigpio_ver))
 
-    def cbf(self, gpio, level, tick):
-        print(gpio, level, tick)
+        #     # lists of digital pin capabilities
+        #     # These lists contain the pins numbers that support the capability
+        #     self.input_capable = []
+        #     self.output_capable = []
+        #     self.analog_capable = []
+        #     self.pwm_capable = []
+        #     self.servo_capable = []
+        #     self.i2c_capable = []
+        #
+        # a list to hold prepared problem msgpack messages
+        self.problem_list = []
 
-
-    #     # lists of digital pin capabilities
-    #     # These lists contain the pins numbers that support the capability
-    #     self.input_capable = []
-    #     self.output_capable = []
-    #     self.analog_capable = []
-    #     self.pwm_capable = []
-    #     self.servo_capable = []
-    #     self.i2c_capable = []
-    #
-    #     # a list to hold prepared problem msgpack messages
-    #     self.problem_list = []
     #
     #     # this contains the numeric "A" (A0, A1..) channel values supported by the board
     #     self.analog_channel = []
@@ -89,47 +87,47 @@ class RaspberryPiBridge:
     #
     #     # establish the zeriomq sub and pub sockets
     #
-    #     self.context = zmq.Context()
-    #     self.subscriber = self.context.socket(zmq.SUB)
-    #     connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-    #         'command_publisher_port']
-    #     self.subscriber.connect(connect_string)
-    #
-    #     # create the topic we wish to subscribe to
-    #     env_string = "A" + self.board_num
-    #     envelope = env_string.encode()
-    #     self.subscriber.setsockopt(zmq.SUBSCRIBE, envelope)
-    #
-    #     self.publisher = self.context.socket(zmq.PUB)
-    #     connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-    #         'reporter_publisher_port']
-    #
-    #     self.publisher.connect(connect_string)
-    #
-    #     # The Xideco protocol message received
-    #     self.payload = None
-    #
-    #     # "pointers" to the methods to process commands from the user
-    #     self.command_dict = {'digital_pin_mode': self.setup_digital_pin, 'digital_write': self.digital_write,
-    #                          'analog_pin_mode': self.setup_analog_pin, 'analog_write': self.analog_write,
-    #                          'set_servo_position': self.set_servo_position, 'play_tone': self.play_tone,
-    #                          'tone_off': self.tone_off}
-    #
-    #     # build all of the error messages ahead of time
-    #     for x in range(0, 51):
-    #         problem_string = str(x)
-    #         self.problem_report = umsgpack.packb(
-    #                 {u"command": "problem", u"board": board_num, u"problem": problem_string + '\n'})
-    #         self.problem_list.append(self.problem_report)
-    #
-    # def setup_analog_pin(self):
-    #     """
-    #     This method validates and configures a pin for analog input
-    #     :return: None
-    #     """
-    #     # clear out any residual problem strings
-    #
-    #     # print('called setup_analog_pin')
+        self.context = zmq.Context()
+        self.subscriber = self.context.socket(zmq.SUB)
+        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+            'command_publisher_port']
+        self.subscriber.connect(connect_string)
+
+        # create the topic we wish to subscribe to
+        env_string = "A" + self.board_num
+        envelope = env_string.encode()
+        self.subscriber.setsockopt(zmq.SUBSCRIBE, envelope)
+
+        self.publisher = self.context.socket(zmq.PUB)
+        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+            'reporter_publisher_port']
+
+        self.publisher.connect(connect_string)
+
+        # The Xideco protocol message received
+        self.payload = None
+
+        self.command_dict = {'digital_pin_mode': self.setup_digital_pin, 'digital_write': self.digital_write,
+                             'analog_pin_mode': self.setup_analog_pin, 'analog_write': self.analog_write,
+                             'set_servo_position': self.set_servo_position, 'play_tone': self.play_tone,
+                             'tone_off': self.tone_off}
+
+        # build all of the error messages ahead of time
+        for x in range(0, 51):
+            problem_string = str(x)
+            self.problem_report = umsgpack.packb(
+                    {u"command": "problem", u"board": board_num, u"problem": problem_string + '\n'})
+            self.problem_list.append(self.problem_report)
+
+    def setup_analog_pin(self):
+        """
+        This method validates and configures a pin for analog input
+        :return: None
+        """
+        # clear out any residual problem strings
+        #
+        print('called setup_analog_pin')
+
     #
     #     self.report_problem(self.problem_list[0])
     #
@@ -154,99 +152,124 @@ class RaspberryPiBridge:
     #     else:
     #         self.board.disable_analog_reporting(pin)
     #
-    # def setup_digital_pin(self):
-    #     """
-    #     This method processes the Scratch "Digital Pin" Block that establishes the mode for the pin
-    #     :return: None
-    #     """
+    def setup_digital_pin(self):
+        """
+        This method processes the Scratch "Digital Pin" Block that establishes the mode for the pin
+        :return: None
+        """
+
+        # clear out any residual problem strings
+        #     self.report_problem(self.problem_list[0])
+
+        # convert pin string to integer.
+        try:
+            pin = int(self.payload['pin'])
+        except ValueError:
+            # Pin Must Be Specified as an Integer 1-1
+            self.report_problem(self.problem_list[1])
+            return
+
+            # validate that the pin is within the pin count range
+            # pin numbers start with 0 1-2
+            #     if pin >= self.num_digital_pins:
+            #         self.report_problem(self.problem_list[2])
+            #         return
+            #
+        # Is the user enabling or disabling the pin? Get the 'raw' value and translate it.
+        enable = self.payload['enable']
+
+        # retrieve mode from command
+        mode = self.payload['mode']
+        #
+        if enable == 'Enable':
+            # validate the mode for this pin
+            if mode == 'Input':
+                if pin in self.input_capable:
+                    # send the pin mode to the arduino
+                    # self.board.set_pin_mode(pin, Constants.INPUT, self.digital_input_callback)
+                    self.pi.set_mode(pin, pigpio.INPUT)
+                    self.pi.callback(pin, pigpio.EITHER_EDGE, self.cbf)
+                else:
+                    # this pin does not support input mode
+                    self.report_problem(self.problem_list[3])
+            elif mode == 'Output':
+                if pin in self.output_capable:
+                    # send the pin mode to the arduino
+                    # self.board.set_pin_mode(int(pin), Constants.OUTPUT)
+                    self.pi.set_mode(pin, pigpio.OUTPUT)
+
+                else:
+                    # this pin does not support output mode
+                    self.report_problem(self.problem_list[4])
+
+            elif mode == 'PWM':
+                if pin in self.pwm_capable:
+                    # send the pin mode to the arduino
+                    self.pi.set_mode(pin, pigpio.OUTPUT)
+                else:
+                    # this pin does not support output mode
+                    self.report_problem(self.problem_list[5])
+            elif mode == 'Servo':
+                if pin in self.servo_capable:
+                    # send the pin mode to the arduino
+                    self.pi.set_mode(pin, pigpio.OUTPUT)
+                else:
+                    # this pin does not support output mode
+                    self.report_problem(self.problem_list[6])
+            elif mode == 'Tone':
+                if pin in self.servo_capable:
+                    # send the pin mode to the arduino
+                    self.pi.set_mode(pin, pigpio.OUTPUT)
+                else:
+                    # this pin does not support output mode
+                    self.report_problem(self.problem_list[7])
+            elif mode == 'SONAR':
+                if pin in self.input_capable:
+                    # send the pin mode to the arduino
+                    # self.board.sonar_config(pin, pin, self.digital_input_callback, Constants.CB_TYPE_ASYNCIO)
+                    self.pi.set_mode(pin, pigpio.INPUT)
+
+                else:
+                    # this pin does not support output mode
+                    self.report_problem(self.problem_list[8])
+            else:
+                self.report_problem(self.problem_list[9])
+        # must be disable
+        else:
+            print('TO DO')
+            # pin_state = self.board.get_pin_state(pin)
+            # if pin_state[1] != Constants.INPUT:
+            #     self.report_problem(self.problem_list[10])
+            # else:
+            # disable the pin
+            # self.board.disable_digital_reporting(pin)
+
     #
-    #     # clear out any residual problem strings
-    #     self.report_problem(self.problem_list[0])
-    #
-    #     # convert pin string to integer.
-    #     try:
-    #         pin = int(self.payload['pin'])
-    #     except ValueError:
-    #         # Pin Must Be Specified as an Integer 1-1
-    #         self.report_problem(self.problem_list[1])
-    #         return
-    #
-    #     # validate that the pin is within the pin count range
-    #     # pin numbers start with 0 1-2
-    #     if pin >= self.num_digital_pins:
-    #         self.report_problem(self.problem_list[2])
-    #         return
-    #
-    #     # Is the user enabling or disabling the pin? Get the 'raw' value and translate it.
-    #     enable = self.payload['enable']
-    #     # enable = self.check_cmd_enable_disable(enable)
-    #     #
-    #     # retrieve mode from command
-    #     mode = self.payload['mode']
-    #     # mode = self.check_cmd_digital_mode(mode)
-    #     #
-    #     if enable == 'Enable':
-    #         # validate the mode for this pin
-    #         if mode == 'Input':
-    #             if pin in self.input_capable:
-    #                 # send the pin mode to the arduino
-    #                 self.board.set_pin_mode(pin, Constants.INPUT, self.digital_input_callback)
-    #             else:
-    #                 # this pin does not support input mode
-    #                 self.report_problem(self.problem_list[3])
-    #         # elif mode == 'Output':
-    #         elif mode == 'Output':
-    #             if pin in self.output_capable:
-    #                 # send the pin mode to the arduino
-    #                 self.board.set_pin_mode(int(pin), Constants.OUTPUT)
-    #             else:
-    #                 # this pin does not support output mode
-    #                 self.report_problem(self.problem_list[4])
-    #
-    #         elif mode == 'PWM':
-    #             if pin in self.pwm_capable:
-    #                 # send the pin mode to the arduino
-    #                 self.board.set_pin_mode(pin, Constants.PWM)
-    #             else:
-    #                 # this pin does not support output mode
-    #                 self.report_problem(self.problem_list[5])
-    #         elif mode == 'Servo':
-    #             if pin in self.servo_capable:
-    #                 # send the pin mode to the arduino
-    #                 self.board.set_pin_mode(pin, Constants.SERVO)
-    #             else:
-    #                 # this pin does not support output mode
-    #                 self.report_problem(self.problem_list[6])
-    #         elif mode == 'Tone':
-    #             if pin in self.servo_capable:
-    #                 # send the pin mode to the arduino
-    #                 self.board.set_pin_mode(pin, Constants.OUTPUT)
-    #             else:
-    #                 # this pin does not support output mode
-    #                 self.report_problem(self.problem_list[7])
-    #         elif mode == 'SONAR':
-    #             if pin in self.input_capable:
-    #                 # send the pin mode to the arduino
-    #                 self.board.sonar_config(pin, pin, self.digital_input_callback, Constants.CB_TYPE_ASYNCIO)
-    #             else:
-    #                 # this pin does not support output mode
-    #                 self.report_problem(self.problem_list[8])
-    #         else:
-    #             self.report_problem(self.problem_list[9])
-    #     # must be disable
-    #     else:
-    #         pin_state = self.board.get_pin_state(pin)
-    #         if pin_state[1] != Constants.INPUT:
-    #             self.report_problem(self.problem_list[10])
-    #         else:
-    #             # disable the pin
-    #             self.board.disable_digital_reporting(pin)
-    #
-    # def analog_write(self):
-    #     """
-    #     Set a PWM configured pin to the requested value
-    #     :return: None
-    #     """
+    def analog_write(self):
+        """
+        Set a PWM configured pin to the requested value
+        :return: None
+        """
+        print('analg_write')
+        try:
+            pin = int(self.payload['pin'])
+        except ValueError:
+            self.report_problem(self.problem_list[13])
+            return
+
+            # pin_state = self.board.get_pin_state(pin)
+            # if len(pin_state) == 1:
+            #     self.report_problem(self.problem_list[14])
+            #     return
+            #
+            #     if pin_state[1] != Constants.OUTPUT:
+            #         self.report_problem(self.problem_list[15])
+            #         return
+            #
+        value = int(self.payload['value'])
+        #     self.board.digital_write(pin, value)
+        self.pi.set_PWM_dutycycle(pin, value)
+
     #
     #     self.report_problem(self.problem_list[0])
     #     # clear out any residual problem strings
@@ -280,38 +303,41 @@ class RaspberryPiBridge:
     #     else:
     #         self.report_problem(self.problem_list[20])
     #
-    # def digital_write(self):
-    #     """
-    #     Set the state of a digital pin
-    #     :return:
-    #     """
-    #
-    #     # clear out any residual problem strings
-    #     self.report_problem(self.problem_list[0])
-    #
-    #     try:
-    #         pin = int(self.payload['pin'])
-    #     except ValueError:
-    #         self.report_problem(self.problem_list[13])
-    #         return
-    #
-    #     pin_state = self.board.get_pin_state(pin)
-    #     if len(pin_state) == 1:
-    #         self.report_problem(self.problem_list[14])
-    #         return
-    #
-    #     if pin_state[1] != Constants.OUTPUT:
-    #         self.report_problem(self.problem_list[15])
-    #         return
-    #
-    #     value = int(self.payload['value'])
-    #     self.board.digital_write(pin, value)
-    #
-    # def play_tone(self):
-    #     """
-    #     This method will play a tone using the Arduino tone library. It requires FirmataPlus
-    #     :return: None
-    #     """
+    def digital_write(self):
+        """
+        Set the state of a digital pin
+        :return:
+        """
+
+        # clear out any residual problem strings
+        self.report_problem(self.problem_list[0])
+
+        try:
+            pin = int(self.payload['pin'])
+        except ValueError:
+            self.report_problem(self.problem_list[13])
+            return
+
+            # pin_state = self.board.get_pin_state(pin)
+            # if len(pin_state) == 1:
+            #     self.report_problem(self.problem_list[14])
+            #     return
+            #
+            #     if pin_state[1] != Constants.OUTPUT:
+            #         self.report_problem(self.problem_list[15])
+            #         return
+            #
+        value = int(self.payload['value'])
+        #     self.board.digital_write(pin, value)
+        self.pi.write(pin, value)
+
+    def play_tone(self):
+        """
+        This method will play a tone using the Arduino tone library. It requires FirmataPlus
+        :return: None
+        """
+        print('play_tone')
+
     #     # clear out any residual problem strings
     #     self.report_problem(self.problem_list[0])
     #     # get the pin string from the block
@@ -349,11 +375,14 @@ class RaspberryPiBridge:
     #
     #     self.board.play_tone(pin, Constants.TONE_TONE, frequency, duration)
     #
-    # def tone_off(self):
-    #     """
-    #     Turn tone off
-    #     :return:
-    #     """
+    def tone_off(self):
+        """
+        Turn tone off
+        :return:
+        """
+
+        print('tone_off')
+
     #     # clear out any residual problem strings
     #     self.report_problem(self.problem_list[0])
     #     # get the pin string from the block
@@ -376,11 +405,13 @@ class RaspberryPiBridge:
     #     self.board.play_tone(pin, Constants.TONE_NO_TONE, None, None)
     #     return
     #
-    # def set_servo_position(self):
-    #     """
-    #     Set a servo position
-    #     :return:
-    #     """
+    def set_servo_position(self):
+        """
+        Set a servo position
+       :return:
+        """
+        print('set_servo')
+
     #     # clear out any residual problem strings
     #     self.report_problem(self.problem_list[0])
     #
@@ -445,27 +476,25 @@ class RaspberryPiBridge:
     #     self.publisher.send_multipart([envelope, analog_reply_msg])
     #
     def run_raspberry_bridge(self):
-        self.pi.set_mode( 11, pigpio.INPUT)
-        cb1 = self.pi.callback(11, pigpio.EITHER_EDGE, self.cbf)
+        # self.pi.set_mode(11, pigpio.INPUT)
+        # cb1 = self.pi.callback(11, pigpio.EITHER_EDGE, self.cbf)
         while True:
-            pass
 
+            # noinspection PyBroadException
+            try:
+                z = self.subscriber.recv_multipart(zmq.NOBLOCK)
+                self.payload = umsgpack.unpackb(z[1])
+                print("[%s] %s" % (z[0], self.payload))
+                command = self.payload['command']
+                if command in self.command_dict:
+                    self.command_dict[command]()
+                else:
+                    print("can't execute unknown command'")
+                time.sleep(.001)
+            except:
+                time.sleep(.001)
+                #return
 
-
-        # noinspection PyBroadException
-        # try:
-        #     z = self.subscriber.recv_multipart(zmq.NOBLOCK)
-        #     self.payload = umsgpack.unpackb(z[1])
-        #     print("[%s] %s" % (z[0], self.payload))
-        #     command = self.payload['command']
-        #     if command in self.command_dict:
-        #         self.command_dict[command]()
-        #     else:
-        #         print("can't execute unknown command'")
-        #     self.board.sleep(.001)
-        # except:
-        #     self.board.sleep(.001)
-        #     return
     #
     # def get_pin_capabilities(self):
     #     """
@@ -525,21 +554,23 @@ class RaspberryPiBridge:
     #             self.analog_channel.append(x)
     #             self.analog_data[x] = 0
     #
-    # def report_problem(self, problem):
-    #     """
-    #     Publish the supplied Xideco protocol message
-    #     :param problem: problem report
-    #     :return:
-    #     """
-    #     # create a topic specific to the board number of this board
-    #     envelope = ("B" + self.board_num).encode()
-    #     self.publisher.send_multipart([envelope, problem])
+    def report_problem(self, problem):
+        """
+        Publish the supplied Xideco protocol message
+        :param problem: problem report
+        :return:
+        """
+        # create a topic specific to the board number of this board
+        #     envelope = ("B" + self.board_num).encode()
+        #     self.publisher.send_multipart([envelope, problem])
+        print(problem)
+
+    def cbf(self, gpio, level, tick):
+        print(gpio, level, tick)
 
     def cleanup(self):
         print('cleaning up')
         self.pi.stop()
-
-
 
 
 def raspberrypi_bridge():
@@ -555,29 +586,22 @@ def raspberrypi_bridge():
 
     board_num = args.board_number
     rbridge = RaspberryPiBridge(pi, board_num)
-    #while True:
-        #rbridge.run_raspberry_bridge()
+    # while True:
+    # rbridge.run_raspberry_bridge()
     try:
         rbridge.run_raspberry_bridge()
     except:
         print('done done')
         rbridge.cleanup()
-        # pi.stop()
+        pi.stop()
         sys.exit(0)
-
-
-
 
     # signal handler function called when Control-C occurs
     # noinspection PyShadowingNames,PyUnusedLocal,PyUnusedLocal
     def signal_handler(signal, frame):
         print("Control-C detected. See you soon.")
-        time.sleep(5)
-    #
-        rbridge.clean_up()
-    #
-        # sys.exit(0)
-    #
+        sys.exit(0)
+
     # listen for SIGINT
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -585,6 +609,6 @@ def raspberrypi_bridge():
 
 if __name__ == "__main__":
     # try:
-        raspberrypi_bridge()
+    raspberrypi_bridge()
     # except KeyboardInterrupt:
     #     sys.exit(0)
