@@ -41,6 +41,7 @@ class RaspberryPiBridge:
     """
     The Raspberry Bridge provides the protocol bridge between Xideco and a Raspberry Pi board using the
     pigpio library https://github.com/joan2937/pigpio
+
     """
 
     def __init__(self, pi, board_num):
@@ -50,43 +51,74 @@ class RaspberryPiBridge:
         :return:
         """
 
-        self.board_num = board_num
         self.pi = pi
+
+        # there are 3 types of raspberry pi boards dependent upon rev number:
+        # http://elinux.org/RPi_HardwareHistory#Board_Revision_History
+
+        # create a list of rev number to board type
+        self.type_1_revs = [2, 3]
+        self.type_2_revs = [4, 5, 6, 7, 8, 9, 13, 14, 15]
+        # type_3 is >= 16 - this value will be used to compare against
+        self.type_3_revs = 16
+
+        # each board type supports a different set of GPIOs
+        self.type_1_invalid_pins = [2, 3, 5, 6, 12, 13, 16, 19, 20, 26, 27, 28, 29, 30, 31]
+        self.type_2_invalid_pins = [0, 1, 5, 6, 12, 13, 16, 19, 20, 21, 26]
+        self.type_3_invalid_pins = [0, 1, 28, 29, 30, 31]
+
+        # put them all in one list for simpler access
+        self.unavailable_pins = [self.type_1_invalid_pins, self.type_2_invalid_pins,
+                                 self.type_3_invalid_pins]
+
+        # board type - 1, 2 or 3
+        self.pi_board_type = None
+
+        # a list of dictionary items, each entry is a single pin
+        # dictionary entries are {mode, enabled}
+        self.pins = []
+
+        # set a list called pins to hold the pin modes
+        for x in range(0, 32):
+            mode = pi.get_mode(x)
+            entry = {'mode': mode, 'enabled': False}
+            self.pins.append(entry)
+
+        # save user supplied board number
+        self.board_num = board_num
+
         print("board num: " + board_num)
+
+        # determine the hardware rev of the board
         hw_rev = self.pi.get_hardware_revision()
         print('HW REV: ' + str(hw_rev))
+
+        # use that to set the board type
+        if hw_rev >= self.type_3_revs:
+            self.pi_board_type = 3
+        elif hw_rev in self.type_1_revs:
+            self.pi_board_type = 1
+        elif hw_rev in self.type_2_revs:
+            self.pi_board_type = 2
+        else:
+            print("Unknown Hardware Rev: " + hw_rev)
+            sys.exit(0)
+
+        print('Raspberry Pi Board Type Detected: ' + str(self.pi_board_type))
 
         pigpio_ver = self.pi.get_pigpio_version()
         print('PIGPIO REV: ' + str(pigpio_ver))
 
-        #     # lists of digital pin capabilities
-        #     # These lists contain the pins numbers that support the capability
-        #     self.input_capable = []
-        #     self.output_capable = []
-        #     self.analog_capable = []
-        #     self.pwm_capable = []
-        #     self.servo_capable = []
-        #     self.i2c_capable = []
-        #
         # a list to hold prepared problem msgpack messages
         self.problem_list = []
 
-    #
-    #     # this contains the numeric "A" (A0, A1..) channel values supported by the board
-    #     self.analog_channel = []
-    #
-    #     # this is the total number of pins supported by the connected arduino
-    #     self.num_digital_pins = 0
-    #
-    #     # for Snap - a dictionary of pins with their latest values
-    #     self.digital_data = {}
-    #     self.analog_data = {}
-    #
-    #     # go discover the type of Arduino that we are connected to
-    #     self.get_pin_capabilities()
-    #
-    #     # establish the zeriomq sub and pub sockets
-    #
+        #     # for Snap - a dictionary of pins with their latest values
+        #     self.digital_data = {}
+        #     self.analog_data = {}
+        #
+        #
+        #     # establish the zeriomq sub and pub sockets
+        #
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
         connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
@@ -116,7 +148,7 @@ class RaspberryPiBridge:
         for x in range(0, 51):
             problem_string = str(x)
             self.problem_report = umsgpack.packb(
-                    {u"command": "problem", u"board": board_num, u"problem": problem_string + '\n'})
+                {u"command": "problem", u"board": board_num, u"problem": problem_string + '\n'})
             self.problem_list.append(self.problem_report)
 
     def setup_analog_pin(self):
@@ -169,12 +201,11 @@ class RaspberryPiBridge:
             self.report_problem(self.problem_list[1])
             return
 
-            # validate that the pin is within the pin count range
-            # pin numbers start with 0 1-2
-            #     if pin >= self.num_digital_pins:
-            #         self.report_problem(self.problem_list[2])
-            #         return
-            #
+        # validate the gpio number for the board in use
+        if pin in self.unavailable_pins[self.pi_board_type]:
+            self.report_problem(self.problem_list[2])
+            return
+
         # Is the user enabling or disabling the pin? Get the 'raw' value and translate it.
         enable = self.payload['enable']
 
@@ -184,65 +215,50 @@ class RaspberryPiBridge:
         if enable == 'Enable':
             # validate the mode for this pin
             if mode == 'Input':
-                if pin in self.input_capable:
-                    # send the pin mode to the arduino
-                    # self.board.set_pin_mode(pin, Constants.INPUT, self.digital_input_callback)
-                    self.pi.set_mode(pin, pigpio.INPUT)
-                    self.pi.callback(pin, pigpio.EITHER_EDGE, self.cbf)
-                else:
-                    # this pin does not support input mode
-                    self.report_problem(self.problem_list[3])
-            elif mode == 'Output':
-                if pin in self.output_capable:
-                    # send the pin mode to the arduino
-                    # self.board.set_pin_mode(int(pin), Constants.OUTPUT)
-                    self.pi.set_mode(pin, pigpio.OUTPUT)
+                self.pi.set_mode(pin, pigpio.INPUT)
 
-                else:
-                    # this pin does not support output mode
-                    self.report_problem(self.problem_list[4])
+                # update the pin table
+                pin_entry = {'mode': pigpio.INPUT, 'enabled': True}
+                self.pins[pin] = pin_entry
+                self.pi.callback(pin, pigpio.EITHER_EDGE, self.cbf)
+            elif mode == 'Output':
+                self.pi.set_mode(pin, pigpio.OUTPUT)
+
+                # update the pin table
+                pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
+                self.pins[pin] = pin_entry
 
             elif mode == 'PWM':
-                if pin in self.pwm_capable:
-                    # send the pin mode to the arduino
-                    self.pi.set_mode(pin, pigpio.OUTPUT)
-                else:
-                    # this pin does not support output mode
-                    self.report_problem(self.problem_list[5])
-            elif mode == 'Servo':
-                if pin in self.servo_capable:
-                    # send the pin mode to the arduino
-                    self.pi.set_mode(pin, pigpio.OUTPUT)
-                else:
-                    # this pin does not support output mode
-                    self.report_problem(self.problem_list[6])
-            elif mode == 'Tone':
-                if pin in self.servo_capable:
-                    # send the pin mode to the arduino
-                    self.pi.set_mode(pin, pigpio.OUTPUT)
-                else:
-                    # this pin does not support output mode
-                    self.report_problem(self.problem_list[7])
-            elif mode == 'SONAR':
-                if pin in self.input_capable:
-                    # send the pin mode to the arduino
-                    # self.board.sonar_config(pin, pin, self.digital_input_callback, Constants.CB_TYPE_ASYNCIO)
-                    self.pi.set_mode(pin, pigpio.INPUT)
+                self.pi.set_mode(pin, pigpio.OUTPUT)
 
-                else:
-                    # this pin does not support output mode
-                    self.report_problem(self.problem_list[8])
-            else:
-                self.report_problem(self.problem_list[9])
+                # update the pin table
+                pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
+                self.pins[pin] = pin_entry
+            elif mode == 'Servo':
+                self.pi.set_mode(pin, pigpio.OUTPUT)
+
+                # update the pin table
+                pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
+                self.pins[pin] = pin_entry
+                self.pi.set_mode(pin, pigpio.OUTPUT)
+
+                # update the pin table
+                pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
+                self.pins[pin] = pin_entry
+            elif mode == 'SONAR':
+                self.pi.set_mode(pin, pigpio.INPUT)
+
+                # update the pin table
+                pin_entry = {'mode': pigpio.INPUT, 'enabled': True}
+                self.pins[pin] = pin_entry
+                self.pi.callback(pin, pigpio.EITHER_EDGE, self.cbf)
         # must be disable
         else:
-            print('TO DO')
-            # pin_state = self.board.get_pin_state(pin)
-            # if pin_state[1] != Constants.INPUT:
-            #     self.report_problem(self.problem_list[10])
-            # else:
-            # disable the pin
-            # self.board.disable_digital_reporting(pin)
+            pin_entry = self.pins[pin]
+            print(pin_entry)
+            pin_entry['enabled'] = False
+            pins[pin] = self.pin_entry
+            print('b')
 
     #
     def analog_write(self):
@@ -250,7 +266,7 @@ class RaspberryPiBridge:
         Set a PWM configured pin to the requested value
         :return: None
         """
-        print('analg_write')
+        print('analog_write')
         try:
             pin = int(self.payload['pin'])
         except ValueError:
@@ -493,7 +509,7 @@ class RaspberryPiBridge:
                 time.sleep(.001)
             except:
                 time.sleep(.001)
-                #return
+                # return
 
     #
     # def get_pin_capabilities(self):
@@ -568,6 +584,15 @@ class RaspberryPiBridge:
     def cbf(self, gpio, level, tick):
         print(gpio, level, tick)
 
+        # if the pin has reports disabled, just ignore
+        pin_state = self.pins[gpio]
+        if not pin_state['enabled']:
+            return
+        digital_reply_msg = umsgpack.packb({u"command": "digital_read", u"pin": str(gpio), u"value": str(level)})
+
+        envelope = ("B" + self.board_num).encode()
+        self.publisher.send_multipart([envelope, digital_reply_msg])
+
     def cleanup(self):
         print('cleaning up')
         self.pi.stop()
@@ -578,21 +603,20 @@ def raspberrypi_bridge():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", dest="board_number", default="1", help="Board Number - 1 through 10")
-    # parser.add_argument("-p", dest="comport", default="None", help="Arduino COM port - e.g. /dev/ttyACMO or COM3")
 
     args = parser.parse_args()
 
     pi = pigpio.pi()
 
     board_num = args.board_number
-    rbridge = RaspberryPiBridge(pi, board_num)
+    rpi_bridge = RaspberryPiBridge(pi, board_num)
     # while True:
-    # rbridge.run_raspberry_bridge()
+    # rpi_bridge.run_raspberry_bridge()
     try:
-        rbridge.run_raspberry_bridge()
-    except:
+        rpi_bridge.run_raspberry_bridge()
+    except KeyboardInterrupt:
         print('done done')
-        rbridge.cleanup()
+        rpi_bridge.cleanup()
         pi.stop()
         sys.exit(0)
 
