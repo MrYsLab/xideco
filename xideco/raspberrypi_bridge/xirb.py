@@ -334,6 +334,16 @@ class RaspberryPiBridge:
             self.report_problem(self.problem_list[13])
             return
 
+        # get pin information
+        pin_state = self.pins[pin]
+        if pin_state['mode'] == pigpio.OUTPUT:
+            self_report_problem(self.problem_list[14])
+            return
+
+        if not pin_state['enabled']:
+            self_report_problem(self.problem_list[15])
+            return
+
             # pin_state = self.board.get_pin_state(pin)
             # if len(pin_state) == 1:
             #     self.report_problem(self.problem_list[14])
