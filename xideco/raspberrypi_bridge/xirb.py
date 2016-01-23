@@ -144,13 +144,6 @@ class RaspberryPiBridge:
                              'set_servo_position': self.set_servo_position, 'play_tone': self.play_tone,
                              'tone_off': self.tone_off}
 
-        # build all of the error messages ahead of time
-        for x in range(0, 51):
-            problem_string = str(x)
-            self.problem_report = umsgpack.packb(
-                {u"command": "problem", u"board": board_num, u"problem": problem_string + '\n'})
-            self.problem_list.append(self.problem_report)
-
     def setup_analog_pin(self):
         """
         This method validates and configures a pin for analog input
@@ -191,19 +184,24 @@ class RaspberryPiBridge:
         """
 
         # clear out any residual problem strings
-        #     self.report_problem(self.problem_list[0])
+        self.report_problem('Setup Digital Pin: No Problems Reported\n')
 
         # convert pin string to integer.
         try:
             pin = int(self.payload['pin'])
         except ValueError:
             # Pin Must Be Specified as an Integer 1-1
-            self.report_problem(self.problem_list[1])
+            self.report_problem('Setup Digital Pin: GPIO Must Be An Integer\n')
+            time.sleep(1)
+            return
+
+        if pin > 31:
+            self.report_problem('Setup Digital Pin: Illegal GPIO\n')
             return
 
         # validate the gpio number for the board in use
         if pin in self.unavailable_pins[self.pi_board_type]:
-            self.report_problem(self.problem_list[2])
+            self.report_problem('Setup Digital Pin: Illegal GPIO\n')
             return
 
         # Is the user enabling or disabling the pin? Get the 'raw' value and translate it.
@@ -273,15 +271,16 @@ class RaspberryPiBridge:
             self.report_problem(self.problem_list[13])
             return
 
-            # pin_state = self.board.get_pin_state(pin)
-            # if len(pin_state) == 1:
-            #     self.report_problem(self.problem_list[14])
-            #     return
-            #
-            #     if pin_state[1] != Constants.OUTPUT:
-            #         self.report_problem(self.problem_list[15])
-            #         return
-            #
+        # get pin information
+        pin_state = self.pins[pin]
+        if pin_state['mode'] != pigpio.OUTPUT:
+            self_report_problem(self.problem_list[14])
+            return
+
+        if not pin_state['enabled']:
+            self_report_problem(self.problem_list[15])
+            return
+
         value = int(self.payload['value'])
         #     self.board.digital_write(pin, value)
         self.pi.set_PWM_dutycycle(pin, value)
@@ -336,7 +335,7 @@ class RaspberryPiBridge:
 
         # get pin information
         pin_state = self.pins[pin]
-        if pin_state['mode'] == pigpio.OUTPUT:
+        if pin_state['mode'] != pigpio.OUTPUT:
             self_report_problem(self.problem_list[14])
             return
 
@@ -517,6 +516,10 @@ class RaspberryPiBridge:
                 else:
                     print("can't execute unknown command'")
                 time.sleep(.001)
+            except KeyboardInterrupt:
+                print('Exiting ...')
+                self.pi.stop()
+                sys.exit(0)
             except:
                 time.sleep(.001)
                 # return
@@ -587,9 +590,13 @@ class RaspberryPiBridge:
         :return:
         """
         # create a topic specific to the board number of this board
-        #     envelope = ("B" + self.board_num).encode()
-        #     self.publisher.send_multipart([envelope, problem])
-        print(problem)
+        # prob_string = {u"command": "problem", u"board": board_num, u"problem": problem + '\n'}
+        problem = 'RPi ' + problem
+        envelope = ("B" + self.board_num).encode()
+
+        msg = umsgpack.packb({u"command": "problem", u"board": 1, u"problem": problem})
+
+        self.publisher.send_multipart([envelope, msg])
 
     def cbf(self, gpio, level, tick):
         print(gpio, level, tick)
