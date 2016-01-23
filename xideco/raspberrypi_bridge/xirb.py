@@ -144,6 +144,8 @@ class RaspberryPiBridge:
                              'set_servo_position': self.set_servo_position, 'play_tone': self.play_tone,
                              'tone_off': self.tone_off}
 
+        self.last_problem = ''
+
     def setup_analog_pin(self):
         """
         This method validates and configures a pin for analog input
@@ -184,24 +186,29 @@ class RaspberryPiBridge:
         """
 
         # clear out any residual problem strings
-        self.report_problem('Setup Digital Pin: No Problems Reported\n')
+        # self.report_problem('1-0\n')
+        self.last_problem = '1-0\n'
 
         # convert pin string to integer.
-        try:
-            pin = int(self.payload['pin'])
-        except ValueError:
-            # Pin Must Be Specified as an Integer 1-1
-            self.report_problem('Setup Digital Pin: GPIO Must Be An Integer\n')
-            time.sleep(1)
-            return
+        # try:
+        #     pin = int(self.payload['pin'])
+        # except ValueError:
+        #     # Pin Must Be Specified as an Integer 1-1
+        #     self.report_problem('1-1\n')
+        #     return
+        #
+        # if pin > 31:
+        #     self.report_problem('1-2\n')
+        #     return
+        #
+        # # validate the gpio number for the board in use
+        # if pin in self.unavailable_pins[self.pi_board_type]:
+        #     self.report_problem('1-3\n')
+        #     return
 
-        if pin > 31:
-            self.report_problem('Setup Digital Pin: Illegal GPIO\n')
-            return
-
-        # validate the gpio number for the board in use
-        if pin in self.unavailable_pins[self.pi_board_type]:
-            self.report_problem('Setup Digital Pin: Illegal GPIO\n')
+        pin = self.validate_pin()
+        if pin == 99:
+            self.last_problem = '1-1\n'
             return
 
         # Is the user enabling or disabling the pin? Get the 'raw' value and translate it.
@@ -240,9 +247,6 @@ class RaspberryPiBridge:
                 self.pins[pin] = pin_entry
                 self.pi.set_mode(pin, pigpio.OUTPUT)
 
-                # update the pin table
-                pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
-                self.pins[pin] = pin_entry
             elif mode == 'SONAR':
                 self.pi.set_mode(pin, pigpio.INPUT)
 
@@ -265,20 +269,23 @@ class RaspberryPiBridge:
         :return: None
         """
         print('analog_write')
-        try:
-            pin = int(self.payload['pin'])
-        except ValueError:
-            self.report_problem(self.problem_list[13])
+
+        # clear out any residual problem strings
+        self.last_problem = '0\n'
+
+        pin = self.validate_pin()
+        if pin == 99:
+            self.last_problem = '2-1\n'
             return
 
         # get pin information
         pin_state = self.pins[pin]
         if pin_state['mode'] != pigpio.OUTPUT:
-            self_report_problem(self.problem_list[14])
+            self.last_problem = '2-2\n'
             return
 
         if not pin_state['enabled']:
-            self_report_problem(self.problem_list[15])
+            self.last_problem = '2-3\n'
             return
 
         value = int(self.payload['value'])
@@ -323,38 +330,29 @@ class RaspberryPiBridge:
         Set the state of a digital pin
         :return:
         """
-
         # clear out any residual problem strings
-        self.report_problem(self.problem_list[0])
+        self.last_problem = '3-0\n'
 
-        try:
-            pin = int(self.payload['pin'])
-        except ValueError:
-            self.report_problem(self.problem_list[13])
+        pin = self.validate_pin()
+        if pin == 99:
+            self.last_problem = '3-1\n'
             return
 
         # get pin information
         pin_state = self.pins[pin]
         if pin_state['mode'] != pigpio.OUTPUT:
-            self_report_problem(self.problem_list[14])
+            self.last_problem = '3-2\n'
             return
 
-        if not pin_state['enabled']:
-            self_report_problem(self.problem_list[15])
-            return
+        # if not pin_state['enabled']:
+        #     self.last_problem = '3-3\n'
+        #     return
 
-            # pin_state = self.board.get_pin_state(pin)
-            # if len(pin_state) == 1:
-            #     self.report_problem(self.problem_list[14])
-            #     return
-            #
-            #     if pin_state[1] != Constants.OUTPUT:
-            #         self.report_problem(self.problem_list[15])
-            #         return
-            #
         value = int(self.payload['value'])
         #     self.board.digital_write(pin, value)
         self.pi.write(pin, value)
+
+        self.pi.set_PWM_dutycycle(17, 100)
 
     def play_tone(self):
         """
@@ -504,12 +502,14 @@ class RaspberryPiBridge:
         # self.pi.set_mode(11, pigpio.INPUT)
         # cb1 = self.pi.callback(11, pigpio.EITHER_EDGE, self.cbf)
         while True:
-
+            if self.last_problem:
+                self.report_problem()
             # noinspection PyBroadException
             try:
                 z = self.subscriber.recv_multipart(zmq.NOBLOCK)
                 self.payload = umsgpack.unpackb(z[1])
                 print("[%s] %s" % (z[0], self.payload))
+
                 command = self.payload['command']
                 if command in self.command_dict:
                     self.command_dict[command]()
@@ -517,12 +517,10 @@ class RaspberryPiBridge:
                     print("can't execute unknown command'")
                 time.sleep(.001)
             except KeyboardInterrupt:
-                print('Exiting ...')
-                self.pi.stop()
+                self.cleanup()
                 sys.exit(0)
             except:
                 time.sleep(.001)
-                # return
 
     #
     # def get_pin_capabilities(self):
@@ -583,28 +581,28 @@ class RaspberryPiBridge:
     #             self.analog_channel.append(x)
     #             self.analog_data[x] = 0
     #
-    def report_problem(self, problem):
+    def report_problem(self):
         """
         Publish the supplied Xideco protocol message
-        :param problem: problem report
-        :return:
+        :return: None
         """
         # create a topic specific to the board number of this board
-        # prob_string = {u"command": "problem", u"board": board_num, u"problem": problem + '\n'}
-        problem = 'RPi ' + problem
         envelope = ("B" + self.board_num).encode()
 
-        msg = umsgpack.packb({u"command": "problem", u"board": 1, u"problem": problem})
+        msg = umsgpack.packb({u"command": "problem", u"board": 1, u"problem": self.last_problem})
 
         self.publisher.send_multipart([envelope, msg])
+        self.last_problem = ''
 
     def cbf(self, gpio, level, tick):
-        print(gpio, level, tick)
 
         # if the pin has reports disabled, just ignore
         pin_state = self.pins[gpio]
-        if not pin_state['enabled']:
+
+        # if user changes modes suppress output from being sent upstream
+        if pin_state['mode'] == pigpio.OUTPUT:
             return
+        print(gpio, level, tick)
         digital_reply_msg = umsgpack.packb({u"command": "digital_read", u"pin": str(gpio), u"value": str(level)})
 
         envelope = ("B" + self.board_num).encode()
@@ -613,6 +611,33 @@ class RaspberryPiBridge:
     def cleanup(self):
         print('cleaning up')
         self.pi.stop()
+
+    def validate_pin(self):
+        """
+        This method validates a pin number
+        :return: Pin number if valid, 99 if invalid
+        """
+        # payload is established in run_raspberry_bridge
+        try:
+            pin = int(self.payload['pin'])
+        except ValueError:
+            # Pin Must Be Specified as an Integer 1-1
+            # self.report_problem('1-1\n')
+            # self.last_problem = '1-1\n'
+            return 99
+
+        if pin > 31:
+            # self.report_problem('1-2\n')
+            # self.last_problem = '1-2\n'
+            return 99
+
+        # validate the gpio number for the board in use
+        if pin in self.unavailable_pins[self.pi_board_type]:
+            # self.report_problem('1-3\n')
+            # self.last_problem = '1-3\n'
+            return 99
+
+        return pin
 
 
 def raspberrypi_bridge():
