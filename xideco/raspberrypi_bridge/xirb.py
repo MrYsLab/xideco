@@ -50,7 +50,7 @@ class RaspberryPiBridge:
         :param board_num: System Board Number (1-10)
         :return:
         """
-
+        print('1-24-01')
         self.pi = pi
 
         # there are 3 types of raspberry pi boards dependent upon rev number:
@@ -193,7 +193,7 @@ class RaspberryPiBridge:
         # try:
         #     pin = int(self.payload['pin'])
         # except ValueError:
-        #     # Pin Must Be Specified as an Integer 1-1
+            # Pin Must Be Specified as an Integer 1-1
         #     self.report_problem('1-1\n')
         #     return
         #
@@ -239,6 +239,14 @@ class RaspberryPiBridge:
                 # update the pin table
                 pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
                 self.pins[pin] = pin_entry
+
+            elif mode == 'Tone':
+                self.pi.set_mode(pin, pigpio.OUTPUT)
+
+                # update the pin table
+                pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
+                self.pins[pin] = pin_entry
+
             elif mode == 'Servo':
                 self.pi.set_mode(pin, pigpio.OUTPUT)
 
@@ -352,13 +360,57 @@ class RaspberryPiBridge:
         #     self.board.digital_write(pin, value)
         self.pi.write(pin, value)
 
-
     def play_tone(self):
         """
         This method will play a tone using the Arduino tone library. It requires FirmataPlus
         :return: None
         """
+        # clear out any residual problem strings
+        self.last_problem = '5-0\n'
+
+        pin = self.validate_pin()
+        if pin == 99:
+            self.last_problem = '5-1\n'
+            return
+
+        # get pin information
+        pin_state = self.pins[pin]
+        if pin_state['mode'] != pigpio.OUTPUT:
+            self.last_problem = '5-2\n'
+            return
+        frequency =  int((1000 / int(self.payload['frequency'])) * 1000)
+        duration = int(self.payload['duration'])
+
+        tone = [pigpio.pulse(1 << pin, 0, frequency), pigpio.pulse(0, 1 << pin, frequency)]  # flash every 100 ms
+
+        self.pi.wave_clear()
+
+        self.pi.wave_add_generic(tone)  # 100 ms flashes
+        tone_wave = self.pi.wave_create()  # create and save id
+        self.pi.wave_send_repeat(tone_wave)
+
+        if duration == 0:
+            return
+
+        sleep_time = duration * .001
+        time.sleep(sleep_time)
+        self.pi.wave_tx_stop()  # stop waveform
+
+        self.pi.wave_clear()  # clear all waveforms
+
         print('play_tone')
+
+    def tone_off(self):
+        self.last_problem = '6-0\n'
+
+        pin = self.validate_pin()
+        if pin == 99:
+            self.last_problem = '6-1\n'
+            return
+
+        self.pi.wave_tx_stop()  # stop waveform
+
+        self.pi.wave_clear()  # clear all waveforms
 
     #     # clear out any residual problem strings
     #     self.report_problem(self.problem_list[0])
@@ -397,13 +449,7 @@ class RaspberryPiBridge:
     #
     #     self.board.play_tone(pin, Constants.TONE_TONE, frequency, duration)
     #
-    def tone_off(self):
-        """
-        Turn tone off
-        :return:
-        """
 
-        print('tone_off')
 
     #     # clear out any residual problem strings
     #     self.report_problem(self.problem_list[0])
@@ -506,6 +552,8 @@ class RaspberryPiBridge:
             # noinspection PyBroadException
             try:
                 z = self.subscriber.recv_multipart(zmq.NOBLOCK)
+                # z = self.subscriber.recv_multipart()
+
                 self.payload = umsgpack.unpackb(z[1])
                 print("[%s] %s" % (z[0], self.payload))
 
@@ -621,20 +669,15 @@ class RaspberryPiBridge:
             pin = int(self.payload['pin'])
         except ValueError:
             # Pin Must Be Specified as an Integer 1-1
-            # self.report_problem('1-1\n')
-            # self.last_problem = '1-1\n'
             return 99
 
+        # check that pin does not exceed maximum BCM GPIO number
         if pin > 31:
-            # self.report_problem('1-2\n')
-            # self.last_problem = '1-2\n'
             return 99
 
         # validate the gpio number for the board in use
-        if pin in self.unavailable_pins[self.pi_board_type]:
-            # self.report_problem('1-3\n')
-            # self.last_problem = '1-3\n'
-            return 99
+        if pin in self.unavailable_pins[self.pi_board_type-1]:
+             return 99
 
         return pin
 
