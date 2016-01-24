@@ -352,7 +352,6 @@ class RaspberryPiBridge:
         #     self.board.digital_write(pin, value)
         self.pi.write(pin, value)
 
-        self.pi.set_PWM_dutycycle(17, 100)
 
     def play_tone(self):
         """
