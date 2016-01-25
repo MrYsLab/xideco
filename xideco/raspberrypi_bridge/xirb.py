@@ -21,8 +21,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
 import argparse
-import signal
-import sys
 import time
 
 import pigpio
@@ -34,6 +32,12 @@ import zmq
 # from pymata_aio.pymata3 import PyMata3
 
 from xideco.data_files.port_map import port_map
+
+
+
+import signal
+import sys
+import threading
 
 
 # noinspection PyMethodMayBeStatic,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
@@ -146,6 +150,8 @@ class RaspberryPiBridge:
 
         self.last_problem = ''
 
+        self.sonar = None
+
     def setup_analog_pin(self):
         """
         This method validates and configures a pin for analog input
@@ -187,71 +193,89 @@ class RaspberryPiBridge:
 
         # clear out any residual problem strings
         # self.report_problem('1-0\n')
+
         self.last_problem = '1-0\n'
 
-        pin = self.validate_pin()
-        if pin == 99:
-            self.last_problem = '1-1\n'
-            return
+        # retrieve mode from command
+        mode = self.payload['mode']
 
         # Is the user enabling or disabling the pin? Get the 'raw' value and translate it.
         enable = self.payload['enable']
 
-        # retrieve mode from command
-        mode = self.payload['mode']
-        #
-        if enable == 'Enable':
-            # validate the mode for this pin
-            if mode == 'Input':
-                self.pi.set_mode(pin, pigpio.INPUT)
+        if mode == 'SONAR':
+            pins = self.payload['pin'].split('.')
+            self.payload['pin'] = pins[0]
+            trigger_pin = self.validate_pin()
+            if trigger_pin == 99:
+                self.last_problem = '1-2\n'
+                return
 
-                # update the pin table
-                pin_entry = {'mode': pigpio.INPUT, 'enabled': True}
-                self.pins[pin] = pin_entry
-                self.pi.callback(pin, pigpio.EITHER_EDGE, self.cbf)
-            elif mode == 'Output':
-                self.pi.set_mode(pin, pigpio.OUTPUT)
+            self.payload['pin'] = pins[1]
+            echo_pin = self.validate_pin()
+            if echo_pin == 99:
+                self.last_problem = '1-3\n'
+                return
 
-                # update the pin table
-                pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
-                self.pins[pin] = pin_entry
+            if enable == 'Enable':
+                self.enable_sonar(trigger_pin, echo_pin)
+            else:
+                self.disable_sonar()
 
-            elif mode == 'PWM':
-                self.pi.set_mode(pin, pigpio.OUTPUT)
-
-                # update the pin table
-                pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
-                self.pins[pin] = pin_entry
-
-            elif mode == 'Tone':
-                self.pi.set_mode(pin, pigpio.OUTPUT)
-
-                # update the pin table
-                pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
-                self.pins[pin] = pin_entry
-
-            elif mode == 'Servo':
-                self.pi.set_mode(pin, pigpio.OUTPUT)
-
-                # update the pin table
-                pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
-                self.pins[pin] = pin_entry
-                self.pi.set_mode(pin, pigpio.OUTPUT)
-
-            elif mode == 'SONAR':
-                self.pi.set_mode(pin, pigpio.INPUT)
-
-                # update the pin table
-                pin_entry = {'mode': pigpio.INPUT, 'enabled': True}
-                self.pins[pin] = pin_entry
-                self.pi.callback(pin, pigpio.EITHER_EDGE, self.cbf)
-        # must be disable
         else:
-            pin_entry = self.pins[pin]
-            print(pin_entry)
-            pin_entry['enabled'] = False
-            pins[pin] = self.pin_entry
-            print('b')
+
+            pin = self.validate_pin()
+            if pin == 99:
+                self.last_problem = '1-1\n'
+                return
+
+            # retrieve mode from command
+            mode = self.payload['mode']
+            #
+            if enable == 'Enable':
+                # validate the mode for this pin
+                if mode == 'Input':
+                    self.pi.set_mode(pin, pigpio.INPUT)
+
+                    # update the pin table
+                    pin_entry = {'mode': pigpio.INPUT, 'enabled': True}
+                    self.pins[pin] = pin_entry
+                    self.pi.callback(pin, pigpio.EITHER_EDGE, self.cbf)
+                elif mode == 'Output':
+                    self.pi.set_mode(pin, pigpio.OUTPUT)
+
+                    # update the pin table
+                    pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
+                    self.pins[pin] = pin_entry
+
+                elif mode == 'PWM':
+                    self.pi.set_mode(pin, pigpio.OUTPUT)
+
+                    # update the pin table
+                    pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
+                    self.pins[pin] = pin_entry
+
+                elif mode == 'Tone':
+                    self.pi.set_mode(pin, pigpio.OUTPUT)
+
+                    # update the pin table
+                    pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
+                    self.pins[pin] = pin_entry
+
+                elif mode == 'Servo':
+                    self.pi.set_mode(pin, pigpio.OUTPUT)
+
+                    # update the pin table
+                    pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
+                    self.pins[pin] = pin_entry
+                    self.pi.set_mode(pin, pigpio.OUTPUT)
+
+            # must be disable
+            else:
+                pin_entry = self.pins[pin]
+                print(pin_entry)
+                pin_entry['enabled'] = False
+                self.pins[pin] = self.pin_entry
+                print('b')
 
     #
     def analog_write(self):
@@ -387,10 +411,9 @@ class RaspberryPiBridge:
 
         position = int(self.payload['position'])
 
-
         # range of values for position is 500 to 2500
         # each degree is approximately equal to 11   (2000/180)
-        # we add this to 500, the zerio degree position
+        # we add this to 500, the zero degree position
         position = (position * 11) + 500
 
         self.pi.set_servo_pulsewidth(pin, position)  # 0 degree
@@ -415,12 +438,21 @@ class RaspberryPiBridge:
                     self.command_dict[command]()
                 else:
                     print("can't execute unknown command'")
-                # time.sleep(.001)
+                    # time.sleep(.001)
             except KeyboardInterrupt:
                 self.cleanup()
                 sys.exit(0)
             except zmq.error.Again:
                 time.sleep(.001)
+
+    def enable_sonar(self, trigger, echo):
+        self.sonar = Sonar(self.pi, trigger, echo, self.board_num)
+        print("enable sonar: " + str(trigger) + ' ' + str(echo))
+        self.sonar.start()
+
+    def disable_sonar(self):
+        if self.sonar:
+            self.sonar.cancel()
 
     def report_problem(self):
         """
@@ -476,6 +508,141 @@ class RaspberryPiBridge:
         return pin
 
 
+
+
+
+class Sonar(threading.Thread):
+    """
+    This class encapsulates a type of acoustic ranger.  In particular
+    the type of ranger with separate trigger and echo pins.
+
+    A pulse on the trigger initiates the sonar ping and shortly
+    afterwards a sonar pulse is transmitted and the echo pin
+    goes high.  The echo pins stays high until a sonar echo is
+    received (or the response times-out).  The time between
+    the high and low edges indicates the sonar round trip time.
+    """
+
+    def __init__(self, rpi, trigger, echo, board_num):
+        """
+        The class is instantiated with the Pi to use and the
+        gpios connected to the trigger and echo pins.
+        """
+        super().__init__()
+        self.pi = rpi
+        self._trig = trigger
+        # self._trig = 22
+        self._echo = echo
+        # self._echo = 9
+
+        self.board_num = board_num
+
+        self._ping = False
+        self._high = None
+        self._time = None
+
+        self._triggered = False
+
+        self._trig_mode = self.pi.get_mode(self._trig)
+        self._echo_mode = self.pi.get_mode(self._echo)
+
+        self.pi.set_mode(self._trig, pigpio.OUTPUT)
+        self.pi.set_mode(self._echo, pigpio.INPUT)
+
+        self._cb = self.pi.callback(self._trig, pigpio.EITHER_EDGE, self._cbf)
+        self._cb = self.pi.callback(self._echo, pigpio.EITHER_EDGE, self._cbf)
+
+        self.context = zmq.Context()
+
+        self.publisher = self.context.socket(zmq.PUB)
+        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+            'reporter_publisher_port']
+
+        self.publisher.connect(connect_string)
+
+        self._inited = True
+
+    def _cbf(self, gpio, level, tick):
+        if gpio == self._trig:
+            if level == 0:  # trigger sent
+                self._triggered = True
+                self._high = None
+        else:
+            if self._triggered:
+                if level == 1:
+                    self._high = tick
+                else:
+                    if self._high is not None:
+                        self._time = tick - self._high
+                        self._high = None
+                        self._ping = True
+
+    def read(self):
+        """
+        Triggers a reading.  The returned reading is the number
+        of microseconds for the sonar round-trip.
+
+        round trip cms = round trip time / 1000000.0 * 34030
+        """
+        if self._inited:
+            try:
+                self._ping = False
+                self.pi.gpio_trigger(self._trig)
+                start = time.time()
+                while not self._ping:
+                    if (time.time() - start) > 5.0:
+                        return 20000
+                    time.sleep(0.001)
+                return self._time
+            except AttributeError:
+                sys.exit(0)
+        else:
+            return None
+            # print('goodbye')
+            # sys.exit(0)
+
+    def cancel(self):
+        """
+        Cancels the ranger and returns the gpios to their
+        original mode.
+        """
+        if self._inited:
+            self._inited = False
+            self._cb.cancel()
+            self.pi.set_mode(self._trig, self._trig_mode)
+            self.pi.set_mode(self._echo, self._echo_mode)
+
+
+    def run(self):
+
+        if not self._inited:
+            self.cancel()
+
+        end = time.time() + 600.0
+
+        r = 1
+        while time.time() < end:
+            x = self.read()
+            if x:
+                x = x / 1000000.0 * 34030.0
+                x /= 2
+                x = round(x, 2)
+                # print(sonar.read())
+                # print("{} {}".format(r, sonar.read()))
+                print("{} {}".format(r, x))
+
+                r += 1
+
+                # publish the data
+
+                digital_reply_msg = umsgpack.packb({u"command": "digital_read", u"pin": str(self._trig),
+                                                    u"value": str(x)})
+
+                envelope = ("B" + self.board_num).encode()
+                self.publisher.send_multipart([envelope, digital_reply_msg])
+                time.sleep(0.03)
+
+
 def raspberrypi_bridge():
     # noinspection PyShadowingNames
 
@@ -501,7 +668,7 @@ def raspberrypi_bridge():
     # signal handler function called when Control-C occurs
     # noinspection PyShadowingNames,PyUnusedLocal,PyUnusedLocal
     def signal_handler(signal, frame):
-        print("Control-C detected. See you soon.")
+        print("\nControl-C detected. See you soon.")
         sys.exit(0)
 
     # listen for SIGINT
