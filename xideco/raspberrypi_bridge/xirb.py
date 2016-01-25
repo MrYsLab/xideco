@@ -369,69 +369,35 @@ class RaspberryPiBridge:
         """
         print('set_servo')
 
-    #     # clear out any residual problem strings
-    #     self.report_problem(self.problem_list[0])
-    #
-    #     try:
-    #         pin = int(self.payload['pin'])
-    #     except ValueError:
-    #         self.report_problem(self.problem_list[29])
-    #         return
-    #
-    #     pin_state = self.board.get_pin_state(pin)
-    #     if len(pin_state) == 1:
-    #         self.set_problem(self.problem_list[30])
-    #         return
-    #
-    #     if pin_state[1] != Constants.SERVO:
-    #         self.set_problem(self.problem_list[31])
-    #         return
-    #
-    #     position = self.payload['position']
-    #
-    #     try:
-    #         position = int(position)
-    #     except ValueError:
-    #         # frequency Must Be Specified as an Integer
-    #         self.set_problem(self.problem_list[32])
-    #         return
-    #
-    #     if 0 <= position <= 180:
-    #         self.board.analog_write(pin, position)
-    #     else:
-    #         self.set_problem(self.problem_list[33])
-    #     return
-    #
-    # def digital_input_callback(self, data):
-    #     """
-    #     This method receives digital data inputs, creates a Xideco protocol publishing message and publishes the message
-    #     :param data: data[0] = pin, data[1] = value
-    #     :return: None
-    #     """
-    #     pin = str(data[0])
-    #     value = str(data[1])
-    #
-    #     digital_reply_msg = umsgpack.packb({u"command": "digital_read", u"pin": pin, u"value": value})
-    #
-    #     envelope = ("B" + self.board_num).encode()
-    #     self.publisher.send_multipart([envelope, digital_reply_msg])
-    #     # print(digital_reply_msg)
-    #     # print(envelope)
-    #
-    # def analog_input_callback(self, data):
-    #     """
-    #     This method receives Analog data inputs, creates a Xideco protocol publishing message and publishes the message
-    #     :param data: data[0] = pin, data[1] = value
-    #     :return: None
-    #     """
-    #     pin = str(data[0])
-    #     value = str(data[1])
-    #
-    #     analog_reply_msg = umsgpack.packb({u"command": "analog_read", u"pin": pin, u"value": value})
-    #
-    #     envelope = ("B" + self.board_num).encode()
-    #     self.publisher.send_multipart([envelope, analog_reply_msg])
-    #
+        # time to allow servo to move
+        delay = .6
+
+        self.last_problem = '6-0\n'
+
+        pin = self.validate_pin()
+        if pin == 99:
+            self.last_problem = '6-1\n'
+            return
+
+        # get pin information
+        pin_state = self.pins[pin]
+        if pin_state['mode'] != pigpio.OUTPUT:
+            self.last_problem = '6-2\n'
+            return
+
+        position = int(self.payload['position'])
+
+
+        # range of values for position is 500 to 2500
+        # each degree is approximately equal to 11   (2000/180)
+        # we add this to 500, the zerio degree position
+        position = (position * 11) + 500
+
+        self.pi.set_servo_pulsewidth(pin, position)  # 0 degree
+        # print("Servo {} {} micro pulses".format(str(servos), 500))
+        time.sleep(delay)
+        self.pi.set_servo_pulsewidth(pin, 0)
+
     def run_raspberry_bridge(self):
         # self.pi.set_mode(11, pigpio.INPUT)
         # cb1 = self.pi.callback(11, pigpio.EITHER_EDGE, self.cbf)
@@ -449,11 +415,11 @@ class RaspberryPiBridge:
                     self.command_dict[command]()
                 else:
                     print("can't execute unknown command'")
-                time.sleep(.001)
+                # time.sleep(.001)
             except KeyboardInterrupt:
                 self.cleanup()
                 sys.exit(0)
-            except:
+            except zmq.error.Again:
                 time.sleep(.001)
 
     def report_problem(self):
