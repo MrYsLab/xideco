@@ -52,7 +52,7 @@ class RaspberryPiBridge:
         :param board_num: System Board Number (1-10)
         :return:
         """
-        print('1-26-15  13:24')
+        print('xirb version: 26 Jan 2016 11:16')
         self.pi = pi
 
         # there are 3 types of raspberry pi boards dependent upon rev number:
@@ -713,7 +713,6 @@ def raspberrypi_bridge():
     try:
         rpi_bridge.run_raspberry_bridge()
     except KeyboardInterrupt:
-        print('done done')
         rpi_bridge.cleanup()
         pi.stop()
         sys.exit(0)
