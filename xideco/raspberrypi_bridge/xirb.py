@@ -28,9 +28,6 @@ import umsgpack
 
 # noinspection PyPackageRequirements
 import zmq
-# from pymata_aio.constants import Constants
-# from pymata_aio.pymata3 import PyMata3
-
 from xideco.data_files.port_map import port_map
 
 import signal
