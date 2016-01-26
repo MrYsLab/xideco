@@ -2,11 +2,11 @@ from setuptools import setup
 
 setup(
         name='xideco',
-        version='0.1.0',
+        version='0.2.0',
         packages=['xideco', 'xideco.data_files', 'xideco.data_files.port_map', 'xideco.data_files.configuration',
                   'xideco.data_files.scratch_files', 'xideco.data_files.scratch_files.projects',
                   'xideco.data_files.scratch_files.extensions', 'xideco.http_bridge', 'xideco.xideco_router',
-                  'xideco.arduino_bridge', 'experiments', 'experiments.xideco_tweeter'],
+                  'xideco.arduino_bridge', 'xideco.raspberrypi_bridge','experiments', 'experiments.xideco_tweeter'],
         install_requires=['pymata-aio>=2.8',
                           'aiohttp>=0.19.0',
                           'pyzmq>=15.1.0',
@@ -18,11 +18,12 @@ setup(
             'console_scripts': [
                 'xiab = xideco.arduino_bridge.xiab:arduino_bridge',
                 'xihb = xideco.http_bridge.xihb:http_bridge',
-                'xirt = xideco.xideco_router.xirt:xideco_router'
+                'xirt = xideco.xideco_router.xirt:xideco_router',
+                'xirb = xideco.raspberrypi_bridge.xirb:raspberrypi_bridge'
             ]
         },
         url='https://github.com/MrYsLab/xideco/wiki',
-        license='GNU General Publick License v3 (GPLv3)',
+        license='GNU General Public License v3 (GPLv3)',
         author='Alan Yorinks',
         author_email='MisterYsLab@gmail.com',
         description='A Network Enabled Software Backplane',
