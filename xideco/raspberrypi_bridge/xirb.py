@@ -33,8 +33,6 @@ import zmq
 
 from xideco.data_files.port_map import port_map
 
-
-
 import signal
 import sys
 import threading
@@ -54,7 +52,7 @@ class RaspberryPiBridge:
         :param board_num: System Board Number (1-10)
         :return:
         """
-        print('1-24-15  13:24')
+        print('1-26-15  13:24')
         self.pi = pi
 
         # there are 3 types of raspberry pi boards dependent upon rev number:
@@ -151,6 +149,7 @@ class RaspberryPiBridge:
         self.last_problem = ''
 
         self.sonar = None
+        self.a_to_d = None
 
     def setup_analog_pin(self):
         """
@@ -159,32 +158,29 @@ class RaspberryPiBridge:
         """
         # clear out any residual problem strings
         #
+
+        self.last_problem = '2-0\n'
+
+        if not self.a_to_d:
+                self.a_to_d = AtoD(self.pi, 1, 0x48, self.board_num)
+                self.a_to_d.start()
+
+        # test pin range 0-3
+
+        pin = int(self.payload['pin'])
+        if 0 <= pin <= 3:
+            # check if enable or disable
+            enable = self.payload['enable']
+            if enable == 'Enable':
+                self.a_to_d.set_report(pin, True)
+            else:
+                self.a_to_d.set_report(pin, False)
+
+        else:
+            self.last_problem = '2-1\n'
         print('called setup_analog_pin')
 
-    #
-    #     self.report_problem(self.problem_list[0])
-    #
-    #     try:
-    #         pin = int(self.payload['pin'])
-    #     except ValueError:
-    #         self.report_problem(self.problem_list[11])
-    #         return
-    #
-    #     # validate that pin in the analog channel list
-    #     # pin numbers start with 0
-    #     if pin not in self.analog_channel:
-    #         self.report_problem(self.problem_list[12])
-    #         return
-    #
-    #     # Is the user enabling or disabling the pin? Get the 'raw' value and
-    #     # translate it.
-    #     enable = self.payload['enable']
-    #
-    #     if enable == 'Enable':
-    #         self.board.set_pin_mode(pin, Constants.ANALOG, self.analog_input_callback)
-    #     else:
-    #         self.board.disable_analog_reporting(pin)
-    #
+
     def setup_digital_pin(self):
         """
         This method processes the Scratch "Digital Pin" Block that establishes the mode for the pin
@@ -482,7 +478,7 @@ class RaspberryPiBridge:
         self.publisher.send_multipart([envelope, digital_reply_msg])
 
     def cleanup(self):
-        print('cleaning up')
+        print('\nExiting...')
         self.pi.stop()
 
     def validate_pin(self):
@@ -506,9 +502,6 @@ class RaspberryPiBridge:
             return 99
 
         return pin
-
-
-
 
 
 class Sonar(threading.Thread):
@@ -612,26 +605,26 @@ class Sonar(threading.Thread):
             self.pi.set_mode(self._trig, self._trig_mode)
             self.pi.set_mode(self._echo, self._echo_mode)
 
-
     def run(self):
+        """
+        Retrieve sonar data and send report
+        :return:
+        """
 
         if not self._inited:
             self.cancel()
 
         end = time.time() + 600.0
 
-        r = 1
         while time.time() < end:
             x = self.read()
             if x:
+                # calculate round trip time
                 x = x / 1000000.0 * 34030.0
+
+                # calculate distance and round it off
                 x /= 2
                 x = round(x, 2)
-                # print(sonar.read())
-                # print("{} {}".format(r, sonar.read()))
-                print("{} {}".format(r, x))
-
-                r += 1
 
                 # publish the data
 
@@ -641,6 +634,66 @@ class Sonar(threading.Thread):
                 envelope = ("B" + self.board_num).encode()
                 self.publisher.send_multipart([envelope, digital_reply_msg])
                 time.sleep(0.03)
+
+
+class AtoD(threading.Thread):
+    """
+    This class handles the pcf8591 YL 40 Module analog to digital conversion module
+    """
+
+    def __init__(self, rpi, bus, address, board_num):
+        """
+
+        :param rpi: pigpio instance
+        :param bus: i2c bus
+        :param address: i2c address
+        :return: nothing is returned
+        """
+        super().__init__()
+        self.pi = rpi
+        self.bus = bus
+        self.address = address
+        self.board_num = board_num
+
+        self.handle = self.pi.i2c_open(self.bus, self.address)
+        self.context = zmq.Context()
+
+        self.publisher = self.context.socket(zmq.PUB)
+        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+            'reporter_publisher_port']
+
+        self.publisher.connect(connect_string)
+
+        self.reports = [False, False, False, False]
+
+    def set_report(self, index, value):
+        """
+        Set report table to send or deny reports
+        :param index: pin number index into table
+        :param value: True or False
+        :return: nothing returned
+        """
+        self.reports[index] = value
+
+    def run(self):
+        """
+        Continuously monitor the A/D
+        :return:
+        """
+        a_out = 0
+        while True:
+            for a in range(0, 4):
+                if self.reports[a]:
+                    a_out += 1
+                    self.pi.i2c_write_byte_data(self.handle, 0x40 | ((a + 1) & 0x03), a_out & 0xFF)
+                    v = self.pi.i2c_read_byte(self.handle)
+                    print('a: ' + str(a) + 'v:' + str(v))
+                    digital_reply_msg = umsgpack.packb({u"command": "analog_read", u"pin": str(a),
+                                                        u"value": str(v)})
+
+                    envelope = ("B" + self.board_num).encode()
+                    self.publisher.send_multipart([envelope, digital_reply_msg])
+            time.sleep(0.04)
 
 
 def raspberrypi_bridge():
