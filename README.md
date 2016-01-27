@@ -7,7 +7,7 @@
 ![](https://github.com/MrYsLab/xideco/blob/master/documentation/images/scratch.png)
 
 
-Read about [Xideco on the blog.0(http://mryslab.blogspot.com/)
+Read about [Xideco on the blog.](http://mryslab.blogspot.com/)
 
     
 Xideco is pronounced like _*Zydeco*_, a type of American dance music that originated in southern Louisiana.
