@@ -74,14 +74,26 @@ class BeagleBoneBridge:
 
         self.pwm_pins = ["P9_14", "P9_16", "P9_21", "P9_22", "P9_29", "P9_31", "P9_42"]
 
+        self.GPIO_PINS = 0
+        self.ANALOG_PINS = 1
+        self.PWM_PINS = 2
+        self.I2C_PINS = 3
+        self.SPI_PINS = 4
+        self.SERIAL_PINS = 5
+
         # this is a list of dictionary items describing a pin
         # each pin dictionary entry contains the pin id, its configured mode, and if it is enabled or not
-        self.pins = []
+        self.gpio_pin_states = []
+        self.pwm_pin_states = []
 
         # set a list called pins to hold the pin modes
         for x in self.black_gpio_pins:
             entry = {'pin': x, 'mode': None, 'enabled': False}
-            self.pins.append(entry)
+            self.gpio_pin_states.append(entry)
+
+        for x in self.pwm_pins:
+            entry = {'pin': x, 'mode': None, 'enabled': False}
+            self.pwm_pin_states.append(entry)
 
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
@@ -166,7 +178,7 @@ class BeagleBoneBridge:
 
         else:
 
-            pin = self.validate_pin()
+            pin = self.validate_pin(self.GPIO_PINS)
             if pin == 99:
                 self.last_problem = '1-1\n'
                 return
@@ -177,29 +189,34 @@ class BeagleBoneBridge:
             if enable == 'Enable':
                 # validate the mode for this pin
                 if mode == 'Input':
-                    """
-                    self.pi.set_mode(pin, pigpio.INPUT)
-
-                    # update the pin table
-                    pin_entry = {'mode': pigpio.INPUT, 'enabled': True}
-                    self.pins[pin] = pin_entry
-                    self.pi.callback(pin, pigpio.EITHER_EDGE, self.cbf)
-                """
-                elif mode == 'Output':
                     index = self.black_gpio_pins.index(pin)
-                    pin_entry = self.pins[index]
+                    pin_entry = self.gpio_pin_states[index]
+                    pin_entry['mode'] = GPIO.IN
+                    pin_entry['enabled'] = True
+
+                    self.gpio_pin_states[index] = pin_entry
+                    GPIO.setup(pin, GPIO.IN)
+                    GPIO.add_event_detect(pin, GPIO.BOTH, callback=self.digital_input_callback)
+
+                elif mode == 'Output':
+
+                    index = self.black_gpio_pins.index(pin)
+                    pin_entry = self.gpio_pin_states[index]
 
                     # update the pin table
                     # pin_entry = {'pin': pin, 'mode': GPIO.OUT, 'enabled': True}
 
-                    GPIO.setup(pin, GPIO.OUT)
                     pin_entry['mode'] = GPIO.OUT
                     pin_entry['enabled'] = True
 
-                    self.pins[index] = pin_entry
+                    self.gpio_pin_states[index] = pin_entry
+                    GPIO.setup(pin, GPIO.OUT)
+
                     print('b')
 
                 elif mode == 'PWM':
+                    index = self.black_gpio_pins.index(pin)
+                    pin_entry = self.gpio_pin_states[index]
                     """
                     self.pi.set_mode(pin, pigpio.OUTPUT)
 
@@ -231,10 +248,17 @@ class BeagleBoneBridge:
 
             # must be disable
             else:
-                index = self.black_gpio_pins.index(pin)
-                pin_entry = self.pins[index]
-                pin_entry['enabled'] = False
-                self.pins[index] = pin_entry
+                if mode == 'Output':
+                    index = self.black_gpio_pins.index(pin)
+                    pin_entry = self.gpio_pin_states[index]
+                    pin_entry['enabled'] = False
+                    self.gpio_pin_states[index] = pin_entry
+                elif mode == 'Input':
+                    index = self.black_gpio_pins.index(pin)
+                    pin_entry = self.gpio_pin_states[index]
+                    pin_entry['enabled'] = False
+                    self.gpio_pin_states[index] = pin_entry
+                    GPIO.remove_event_detect(pin)
 
                 print('b')
 
@@ -278,14 +302,14 @@ class BeagleBoneBridge:
         # clear out any residual problem strings
         self.last_problem = '3-0\n'
 
-        pin = self.validate_pin()
+        pin = self.validate_pin(self.GPIO_PINS)
         if pin == 99:
             self.last_problem = '3-1\n'
             return
 
         # get pin information
         index = self.black_gpio_pins.index(pin)
-        pin_entry = self.pins[index]
+        pin_entry = self.gpio_pins[index]
         if pin_entry['mode'] != GPIO.OUT:
             self.last_problem = '3-2\n'
             return
@@ -402,13 +426,19 @@ class BeagleBoneBridge:
         self.pi.set_servo_pulsewidth(pin, 0)
         """
 
-    def validate_pin(self):
+    def validate_pin(self, pin_type):
         pin = self.payload['pin']
         if self.board_type == 'black':
-            if pin not in self.black_gpio_pins:
-                return 99
-            else:
-                return self.payload['pin']
+            if pin_type == self.GPIO_PINS:
+                if pin not in self.black_gpio_pins:
+                    return 99
+                else:
+                    return self.payload['pin']
+            elif pin_type == self.PWM_PINS:
+                if pin not in self.pwm_pins:
+                    return 99
+                else:
+                    return self.payload['pin']
         else:
             print('validate pin: unknown board type: ' + self.board_type)
 
@@ -424,6 +454,17 @@ class BeagleBoneBridge:
 
         self.publisher.send_multipart([envelope, msg])
         self.last_problem = ''
+
+    def digital_input_callback(self, pin):
+        # if the pin has reports disabled, just ignore
+        print(pin)
+        # pin_state = self.pins[gpio]
+        state =  z = GPIO.input(pin)
+
+        digital_reply_msg = umsgpack.packb({u"command": "digital_read", u"pin": pin, u"value": str(state)})
+
+        envelope = ("B" + self.board_num).encode()
+        self.publisher.send_multipart([envelope, digital_reply_msg])
 
     def run_bb_bridge(self):
         print('run_bb')
