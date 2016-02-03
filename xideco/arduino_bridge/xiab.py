@@ -38,6 +38,7 @@ class ArduinoBridge:
     """
     The Arduino Bridge provides the protocol bridge between Xideco and Firmata
     """
+
     def __init__(self, pymata_board, board_num):
         """
         :param pymata_board: Pymata-aio instance
@@ -56,9 +57,6 @@ class ArduinoBridge:
         self.pwm_capable = []
         self.servo_capable = []
         self.i2c_capable = []
-
-        # a list to hold prepared problem msgpack messages
-        self.problem_list = []
 
         # this contains the numeric "A" (A0, A1..) channel values supported by the board
         self.analog_channel = []
@@ -101,12 +99,7 @@ class ArduinoBridge:
                              'set_servo_position': self.set_servo_position, 'play_tone': self.play_tone,
                              'tone_off': self.tone_off}
 
-        # build all of the error messages ahead of time
-        for x in range(0, 51):
-            problem_string = str(x)
-            self.problem_report = umsgpack.packb(
-                    {u"command": "problem", u"board": board_num, u"problem": problem_string + '\n'})
-            self.problem_list.append(self.problem_report)
+        self.last_problem = ''
 
     def setup_analog_pin(self):
         """
@@ -114,21 +107,19 @@ class ArduinoBridge:
         :return: None
         """
         # clear out any residual problem strings
-
-        # print('called setup_analog_pin')
-
-        self.report_problem(self.problem_list[0])
+        self.last_problem = '2-0\n'
+        self.report_problem()
 
         try:
             pin = int(self.payload['pin'])
         except ValueError:
-            self.report_problem(self.problem_list[11])
+            self.last_problem = '2-1\n'
             return
 
         # validate that pin in the analog channel list
         # pin numbers start with 0
         if pin not in self.analog_channel:
-            self.report_problem(self.problem_list[12])
+            self.last_problem = '2-2\n'
             return
 
         # Is the user enabling or disabling the pin? Get the 'raw' value and
@@ -147,30 +138,28 @@ class ArduinoBridge:
         """
 
         # clear out any residual problem strings
-        self.report_problem(self.problem_list[0])
+        self.last_problem = '1-0\n'
 
         # convert pin string to integer.
         try:
             pin = int(self.payload['pin'])
         except ValueError:
             # Pin Must Be Specified as an Integer 1-1
-            self.report_problem(self.problem_list[1])
+            self.last_problem = '1-1\n'
             return
 
         # validate that the pin is within the pin count range
         # pin numbers start with 0 1-2
         if pin >= self.num_digital_pins:
-            self.report_problem(self.problem_list[2])
+            self.last_problem = '1-2\n'
             return
 
         # Is the user enabling or disabling the pin? Get the 'raw' value and translate it.
         enable = self.payload['enable']
-        # enable = self.check_cmd_enable_disable(enable)
-        #
+
         # retrieve mode from command
         mode = self.payload['mode']
-        # mode = self.check_cmd_digital_mode(mode)
-        #
+
         if enable == 'Enable':
             # validate the mode for this pin
             if mode == 'Input':
@@ -179,7 +168,7 @@ class ArduinoBridge:
                     self.board.set_pin_mode(pin, Constants.INPUT, self.digital_input_callback)
                 else:
                     # this pin does not support input mode
-                    self.report_problem(self.problem_list[3])
+                    self.last_problem = '1-3\n'
             # elif mode == 'Output':
             elif mode == 'Output':
                 if pin in self.output_capable:
@@ -187,7 +176,7 @@ class ArduinoBridge:
                     self.board.set_pin_mode(int(pin), Constants.OUTPUT)
                 else:
                     # this pin does not support output mode
-                    self.report_problem(self.problem_list[4])
+                    self.last_problem = '1-4\n'
 
             elif mode == 'PWM':
                 if pin in self.pwm_capable:
@@ -195,35 +184,35 @@ class ArduinoBridge:
                     self.board.set_pin_mode(pin, Constants.PWM)
                 else:
                     # this pin does not support output mode
-                    self.report_problem(self.problem_list[5])
+                    self.last_problem = '1-5\n'
             elif mode == 'Servo':
                 if pin in self.servo_capable:
                     # send the pin mode to the arduino
                     self.board.set_pin_mode(pin, Constants.SERVO)
                 else:
                     # this pin does not support output mode
-                    self.report_problem(self.problem_list[6])
+                    self.last_problem = '1-6\n'
             elif mode == 'Tone':
                 if pin in self.servo_capable:
                     # send the pin mode to the arduino
                     self.board.set_pin_mode(pin, Constants.OUTPUT)
                 else:
                     # this pin does not support output mode
-                    self.report_problem(self.problem_list[7])
+                    self.last_problem = '1-7\n'
             elif mode == 'SONAR':
                 if pin in self.input_capable:
                     # send the pin mode to the arduino
                     self.board.sonar_config(pin, pin, self.digital_input_callback, Constants.CB_TYPE_ASYNCIO)
                 else:
                     # this pin does not support output mode
-                    self.report_problem(self.problem_list[8])
+                    self.last_problem = '1-8\n'
             else:
-                self.report_problem(self.problem_list[9])
+                self.last_problem = '1-9\n'
         # must be disable
         else:
             pin_state = self.board.get_pin_state(pin)
             if pin_state[1] != Constants.INPUT:
-                self.report_problem(self.problem_list[10])
+                self.last_problem = '1-10\n'
             else:
                 # disable the pin
                 self.board.disable_digital_reporting(pin)
@@ -234,37 +223,37 @@ class ArduinoBridge:
         :return: None
         """
 
-        self.report_problem(self.problem_list[0])
+        self.last_problem = '4-0\n'
         # clear out any residual problem strings
 
         try:
             pin = int(self.payload['pin'])
         except ValueError:
             # Pin Must Be Specified as an Integer
-            self.report_problem(self.problem_list[16])
+            self.last_problem = '4-1\n'
             return
 
         pin_state = self.board.get_pin_state(pin)
         if len(pin_state) == 1:
-            self.report_problem(self.problem_list[17])
+            self.last_problem = '4-2\n'
             return
 
         if pin_state[1] != Constants.PWM:
-            self.report_problem(self.problem_list[18])
+            self.last_problem = '4-3\n'
             return
 
         try:
             value = int(self.payload['value'])
         except ValueError:
             # Pin Must Be Specified as an Integer
-            self.report_problem(self.problem_list[19])
+            self.last_problem = '4-4\n'
             return
 
         # validate range of value
         if 0 <= value <= 255:
             self.board.analog_write(pin, value)
         else:
-            self.report_problem(self.problem_list[20])
+            self.last_problem = '4-5\n'
 
     def digital_write(self):
         """
@@ -273,21 +262,21 @@ class ArduinoBridge:
         """
 
         # clear out any residual problem strings
-        self.report_problem(self.problem_list[0])
+        self.last_problem = '3-0\n'
 
         try:
             pin = int(self.payload['pin'])
         except ValueError:
-            self.report_problem(self.problem_list[13])
+            self.last_problem = '3-1\n'
             return
 
         pin_state = self.board.get_pin_state(pin)
         if len(pin_state) == 1:
-            self.report_problem(self.problem_list[14])
+            self.last_problem = '3-2\n'
             return
 
         if pin_state[1] != Constants.OUTPUT:
-            self.report_problem(self.problem_list[15])
+            self.last_problem = '3-3\n'
             return
 
         value = int(self.payload['value'])
@@ -299,22 +288,22 @@ class ArduinoBridge:
         :return: None
         """
         # clear out any residual problem strings
-        self.report_problem(self.problem_list[0])
+        self.last_problem = '5-0\n'
         # get the pin string from the block
         try:
             pin = int(self.payload['pin'])
         except ValueError:
             # Pin Must Be Specified as an Integer
-            self.report_problem(self.problem_list[21])
+            self.last_problem = '5-1\n'
             return
 
         pin_state = self.board.get_pin_state(pin)
         if len(pin_state) == 1:
-            self.report_problem(self.problem_list[22])
+            self.last_problem = '5-2\n'
             return
 
         if pin_state[1] != Constants.OUTPUT:
-            self.report_problem(self.problem_list[23])
+            self.last_problem = '5-3\n'
             return
 
         frequency = self.payload['frequency']
@@ -323,14 +312,14 @@ class ArduinoBridge:
             frequency = int(frequency)
         except ValueError:
             # frequency Must Be Specified as an Integer
-            self.report_problem(self.problem_list[24])
+            self.last_problem = '5-4\n'
             return
 
         try:
             duration = int(self.payload['duration'])
         except ValueError:
             # frequency Must Be Specified as an Integer
-            self.report_problem(self.problem_list[25])
+            self.last_problem = '5-5\n'
             return
 
         self.board.play_tone(pin, Constants.TONE_TONE, frequency, duration)
@@ -341,22 +330,22 @@ class ArduinoBridge:
         :return:
         """
         # clear out any residual problem strings
-        self.report_problem(self.problem_list[0])
+        self.last_problem = '6-0\n'
         # get the pin string from the block
         try:
             pin = int(self.payload['pin'])
         except ValueError:
             # Pin Must Be Specified as an Integer
-            self.report_problem(self.problem_list[26])
+            self.last_problem = '6-1\n'
             return
 
         pin_state = self.board.get_pin_state(pin)
         if len(pin_state) == 1:
-            self.report_problem(self.problem_list[27])
+            self.last_problem = '6-2\n'
             return
 
         if pin_state[1] != Constants.OUTPUT:
-            self.report_problem(self.problem_list[28])
+            self.last_problem = '6-3\n'
             return
 
         self.board.play_tone(pin, Constants.TONE_NO_TONE, None, None)
@@ -368,21 +357,21 @@ class ArduinoBridge:
         :return:
         """
         # clear out any residual problem strings
-        self.report_problem(self.problem_list[0])
+        self.last_problem = '7-0\n'
 
         try:
             pin = int(self.payload['pin'])
         except ValueError:
-            self.report_problem(self.problem_list[29])
+            self.last_problem = '7-1\n'
             return
 
         pin_state = self.board.get_pin_state(pin)
         if len(pin_state) == 1:
-            self.set_problem(self.problem_list[30])
+            self.last_problem = '7-2\n'
             return
 
         if pin_state[1] != Constants.SERVO:
-            self.set_problem(self.problem_list[31])
+            self.last_problem = '7-3\n'
             return
 
         position = self.payload['position']
@@ -391,13 +380,13 @@ class ArduinoBridge:
             position = int(position)
         except ValueError:
             # frequency Must Be Specified as an Integer
-            self.set_problem(self.problem_list[32])
+            self.last_problem = '7-4\n'
             return
 
         if 0 <= position <= 180:
             self.board.analog_write(pin, position)
         else:
-            self.set_problem(self.problem_list[33])
+            self.last_problem = '7-5\n'
         return
 
     def digital_input_callback(self, data):
@@ -431,20 +420,28 @@ class ArduinoBridge:
         self.publisher.send_multipart([envelope, analog_reply_msg])
 
     def run_arduino_bridge(self):
+        """
+        start the bridge
+        :return:
+        """
 
-        # noinspection PyBroadException
-        try:
-            z = self.subscriber.recv_multipart(zmq.NOBLOCK)
-            self.payload = umsgpack.unpackb(z[1])
-            # print("[%s] %s" % (z[0], self.payload))
-            command = self.payload['command']
-            if command in self.command_dict:
-                self.command_dict[command]()
-            else:
-                print("can't execute unknown command'")
-            self.board.sleep(.001)
-        except:
-            self.board.sleep(.001)
+        while True:
+            if self.last_problem:
+                self.report_problem()
+            # noinspection PyBroadException
+            try:
+                z = self.subscriber.recv_multipart(zmq.NOBLOCK)
+
+                self.payload = umsgpack.unpackb(z[1])
+                # print("[%s] %s" % (z[0], self.payload))
+                command = self.payload['command']
+                if command in self.command_dict:
+                    self.command_dict[command]()
+                else:
+                    print("can't execute unknown command'")
+                self.board.sleep(.001)
+            except:
+                self.board.sleep(.001)
             # return
 
     def get_pin_capabilities(self):
@@ -505,15 +502,23 @@ class ArduinoBridge:
                 self.analog_channel.append(x)
                 self.analog_data[x] = 0
 
-    def report_problem(self, problem):
+    # def report_problem(self, problem):
+    def report_problem(self):
+
         """
         Publish the supplied Xideco protocol message
-        :param problem: problem report
         :return:
         """
         # create a topic specific to the board number of this board
+        # envelope = ("B" + self.board_num).encode()
+        # self.publisher.send_multipart([envelope, problem])
+
         envelope = ("B" + self.board_num).encode()
-        self.publisher.send_multipart([envelope, problem])
+
+        msg = umsgpack.packb({u"command": "problem", u"board": 1, u"problem": self.last_problem})
+
+        self.publisher.send_multipart([envelope, msg])
+        self.last_problem = ''
 
     def clean_up(self):
         """
@@ -526,6 +531,10 @@ class ArduinoBridge:
 
 
 def arduino_bridge():
+    """
+    Main function for arduino bridge
+    :return:
+    """
     # noinspection PyShadowingNames
 
     parser = argparse.ArgumentParser()
@@ -540,8 +549,8 @@ def arduino_bridge():
 
     board_num = args.board_number
     abridge = ArduinoBridge(pymata_board, board_num)
-    while True:
-        abridge.run_arduino_bridge()
+    # while True:
+    abridge.run_arduino_bridge()
 
     # signal handler function called when Control-C occurs
     # noinspection PyShadowingNames,PyUnusedLocal,PyUnusedLocal

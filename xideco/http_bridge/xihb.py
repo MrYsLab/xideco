@@ -259,8 +259,8 @@ class HttpBridge:
         """
         # save the reply to a temporary variable
         total_reply = self.poll_reply
-        if total_reply != '':
-            print('r: ' + total_reply)
+        # if total_reply != '':
+        #     print('r: ' + total_reply)
 
         # clear the poll reply string for the next reply set
         self.poll_reply = ""
@@ -307,7 +307,7 @@ class HttpBridge:
     async def send_command_to_router(self, board, message):
         """
         Create a topic message and send the multipart message to the router
-        :param board: Arduino board message is destined for
+        :param board:  board that message is destined for
         :param message: Command message from Scratch
         :return:
         """

@@ -5,7 +5,7 @@
     "blockSpecs": [
         [
             " ",
-            "%m.board_number %m.pin_state : 디지털 %n 번핀 / %m.digital_pin_mode 모드",
+            "%m.board_number %m.pin_state : 디지털 %s 번핀 / %m.digital_pin_mode 모드",
             "digital_pin_mode",
             "1",
             "사용",
@@ -14,7 +14,7 @@
         ],
         [
             " ",
-            "%m.board_number %m.pin_state : 아날로그 %n 번핀",
+            "%m.board_number %m.pin_state : 아날로그 %s 번핀",
             "analog_pin_mode",
             "1",
             "사용",
@@ -22,7 +22,7 @@
         ],
         [
             "",
-            "%m.board_number 디지털 %n 번핀에 %m.high_low 보내기",
+            "%m.board_number 디지털 %s 번핀에 %m.high_low 보내기",
             "digital_write",
             "1",
             "0",
@@ -30,7 +30,7 @@
         ],
         [
             "",
-            "%m.board_number 디지털(전류조절) %n 번핀에 %n 보내기",
+            "%m.board_number 디지털(전류조절) %s 번핀에 %n 보내기",
             "analog_write",
             "1",
             "0",
@@ -38,7 +38,7 @@
         ],
         [
             "",
-            "%m.board_number 신호음 %n 번핀에서 %n 주파수로 %n 동안 재생하기",
+            "%m.board_number 신호음 %s 번핀에서 %n 주파수로 %n 동안 재생하기",
             "play_tone",
             "1",
             "0",
@@ -47,14 +47,14 @@
         ],
         [
             "",
-            "%m.board_number %n 번핀의 신호음 끄기",
+            "%m.board_number %s 번핀의 신호음 끄기",
             "tone_off",
             "1",
             "0"
         ],
         [
             "",
-            "%m.board_number 서보모터 %n 번핀을 %n ° 만큼 회전시키기",
+            "%m.board_number 서보모터 %s 번핀을 %n ° 만큼 회전시키기",
             "set_servo_position",
             "1",
             "0",
@@ -62,14 +62,14 @@
         ],
         [
             "r",
-            "%m.board_number 디지털 %n 번핀 값 읽어오기",
+            "%m.board_number 디지털 %s 번핀 값 읽어오기",
             "digital_read",
             "1",
             "0"
         ],
         [
             "r",
-            "%m.board_number 아날로그 %n 번핀 값 읽어보기",
+            "%m.board_number 아날로그 %s 번핀 값 읽어보기",
             "analog_read",
             "1",
             "0"

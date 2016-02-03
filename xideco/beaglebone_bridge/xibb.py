@@ -21,8 +21,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
 import argparse
-import time
 import threading
+import time
 
 import umsgpack
 # noinspection PyPackageRequirements
@@ -78,13 +78,6 @@ class BeagleBoneBridge:
 
         self.pwm_pins = ["P9_14", "P9_16", "P9_21", "P9_22", "P9_42", "P8_13", "P8_19"]
 
-        self.GPIO_PINS = 0
-        self.ANALOG_PINS = 1
-        self.PWM_PINS = 2
-        self.I2C_PINS = 3
-        self.SPI_PINS = 4
-        self.SERIAL_PINS = 5
-
         # this is a list of dictionary items describing a pin
         # each pin dictionary entry contains the pin id, its configured mode, and if it is enabled or not
         self.gpio_pin_states = []
@@ -132,9 +125,7 @@ class BeagleBoneBridge:
         self.last_problem = ''
 
         self.analog_reader = None
-        print('init done')
-
-        print('a')
+        self.sonar = None
 
     def setup_analog_pin(self):
         """
@@ -154,6 +145,7 @@ class BeagleBoneBridge:
 
         if self.payload['enable'] == 'Enable':
             pin_entry['enabled'] = True
+            pin_entry['mode'] = 'analog'
             self.analog_pin_states[index] = pin_entry
         else:
             pin_entry['enabled'] = False
@@ -164,8 +156,6 @@ class BeagleBoneBridge:
 
             ADC.setup()
             self.analog_reader.start()
-
-        print('called setup_analog_pin')
 
     def setup_digital_pin(self):
         """
@@ -180,35 +170,35 @@ class BeagleBoneBridge:
 
         # retrieve mode from command
         mode = self.payload['mode']
-        print(mode)
 
         # Is the user enabling or disabling the pin? Get the 'raw' value and translate it.
         enable = self.payload['enable']
 
         if mode == 'SONAR':
-            """
-            pins = self.payload['pin'].split('.')
-            self.payload['pin'] = pins[0]
-            trigger_pin = self.validate_pin()
-            if trigger_pin == 99:
-                self.last_problem = '1-2\n'
+            self.last_problem = '7-0\n'
+            pin = self.validate_pin(self.analog_pins)
+            if pin == 99:
+                self.last_problem = '7-1\n'
                 return
+            index = self.analog_pins.index(pin)
+            pin_entry = self.analog_pin_states[index]
 
-            self.payload['pin'] = pins[1]
-            echo_pin = self.validate_pin()
-            if echo_pin == 99:
-                self.last_problem = '1-3\n'
-                return
-
-            if enable == 'Enable':
-                self.enable_sonar(trigger_pin, echo_pin)
+            if self.payload['enable'] == 'Enable':
+                pin_entry['enabled'] = True
+                pin_entry['mode'] = 'sonar'
+                self.analog_pin_states[index] = pin_entry
             else:
-                self.disable_sonar()
-            """
-            pass
+                pin_entry['enabled'] = False
+                self.analog_pin_states[index] = pin_entry
 
-        elif mode == 'PWM' or mode == 'Servo':
-            print('enter pwm')
+            if not self.analog_reader:
+                self.analog_reader = AnalogReader(self.board_num, self.analog_pin_states)
+
+                ADC.setup()
+                self.analog_reader.start()
+
+
+        elif mode == 'PWM' or mode == 'Servo' or mode == 'Tone':
             pin = self.validate_pin(self.pwm_pins)
             if pin == 99:
                 self.last_problem = '1-2\n'
@@ -219,19 +209,14 @@ class BeagleBoneBridge:
             if self.payload['enable'] == 'Enable':
                 pin_entry['enabled'] = True
                 self.pwm_pin_states[index] = pin_entry
-                if mode == 'PWM':
+                if mode == 'PWM' or mode == 'Tone':
                     PWM.start(pin, 0.0)
                 else:
-                    print('init for servo polarity = ', self.servo_polarity)
                     PWM.start(pin, 3, 60.0, self.servo_polarity)
             else:
                 pin_entry['enabled'] = False
                 self.pwm_pin_states[index] = pin_entry
-
-
-
         else:
-
             pin = self.validate_pin(self.black_gpio_pins)
             if pin == 99:
                 self.last_problem = '1-1\n'
@@ -265,21 +250,6 @@ class BeagleBoneBridge:
 
                     self.gpio_pin_states[index] = pin_entry
                     GPIO.setup(pin, GPIO.OUT)
-
-                    print('b')
-
-
-
-                elif mode == 'Tone':
-                    """
-                    self.pi.set_mode(pin, pigpio.OUTPUT)
-
-                    # update the pin table
-                    pin_entry = {'mode': pigpio.OUTPUT, 'enabled': True}
-                    self.pins[pin] = pin_entry
-                    """
-                    pass
-
             # must be disable
             else:
                 if mode == 'Output':
@@ -294,9 +264,6 @@ class BeagleBoneBridge:
                     self.gpio_pin_states[index] = pin_entry
                     GPIO.remove_event_detect(pin)
 
-                print('b')
-
-    #
     def analog_write(self):
         """
         Set a PWM configured pin to the requested value
@@ -313,8 +280,6 @@ class BeagleBoneBridge:
         # get pin information
         index = self.pwm_pins.index(pin)
         pin_entry = self.pwm_pin_states[index]
-
-        print(pin_entry['enabled'])
 
         if not pin_entry['enabled']:
             self.last_problem = '4-2\n'
@@ -361,72 +326,68 @@ class BeagleBoneBridge:
 
     def play_tone(self):
         """
-        This method will play a tone using the Arduino tone library. It requires FirmataPlus
-        :return: None
+        This method will play a tone using PWM.
         """
 
         # clear out any residual problem strings
 
         self.last_problem = '5-0\n'
 
-        """
-        pin = self.validate_pin()
+        pin = self.validate_pin(self.pwm_pins)
         if pin == 99:
             self.last_problem = '5-1\n'
             return
 
         # get pin information
-        pin_state = self.pins[pin]
-        if pin_state['mode'] != pigpio.OUTPUT:
+        index = self.pwm_pins.index(pin)
+        pin_entry = self.pwm_pin_states[index]
+
+        if not pin_entry['enabled']:
             self.last_problem = '5-2\n'
             return
-        frequency = int((1000 / int(self.payload['frequency'])) * 1000)
-        duration = int(self.payload['duration'])
 
-        tone = [pigpio.pulse(1 << pin, 0, frequency), pigpio.pulse(0, 1 << pin, frequency)]  # flash every 100 ms
+        frequency = int(self.payload['frequency'])
+        duration = float(self.payload['duration']) / 1000
 
-        self.pi.wave_clear()
+        PWM.set_duty_cycle(pin, 50)
 
-        self.pi.wave_add_generic(tone)  # 100 ms flashes
-        tone_wave = self.pi.wave_create()  # create and save id
-        self.pi.wave_send_repeat(tone_wave)
+        PWM.set_frequency(pin, frequency)
 
         if duration == 0:
             return
 
-        sleep_time = duration * .001
-        time.sleep(sleep_time)
-        self.pi.wave_tx_stop()  # stop waveform
+        time.sleep(duration)
 
-        self.pi.wave_clear()  # clear all waveforms
-
-        print('play_tone')
-        """
+        PWM.set_duty_cycle(pin, 0.0)
 
     def tone_off(self):
-
-        pass
+        """
+        This method forces a pin playing a tone to off
+        :return:
         """
         self.last_problem = '6-0\n'
 
-        pin = self.validate_pin()
+        pin = self.validate_pin(self.pwm_pins)
         if pin == 99:
             self.last_problem = '6-1\n'
             return
 
-        self.pi.wave_tx_stop()  # stop waveform
+        # get pin information
+        index = self.pwm_pins.index(pin)
+        pin_entry = self.pwm_pin_states[index]
 
-        self.pi.wave_clear()  # clear all waveforms
-        """
+        if not pin_entry['enabled']:
+            self.last_problem = '6-2\n'
+            return
+
+        PWM.set_duty_cycle(pin, 0.0)
 
     def set_servo_position(self):
-        pass
 
         """
         Set a servo position
-       :return:
+        :return:
         """
-        print('set servo pos')
         duty_min = 3
         duty_max = 14.5
         duty_span = duty_max - duty_min
@@ -441,10 +402,8 @@ class BeagleBoneBridge:
         index = self.pwm_pins.index(pin)
         pin_entry = self.pwm_pin_states[index]
 
-        print(pin_entry['enabled'])
-
         if not pin_entry['enabled']:
-            self.last_problem = '4-2\n'
+            self.last_problem = '7-1\n'
             return
 
         position = int(self.payload['position'])
@@ -452,12 +411,14 @@ class BeagleBoneBridge:
         angle_f = float(position)
         duty = 100 - ((angle_f / 180) * duty_span + duty_min)
 
-        print('duty cycle = ' + str(duty))
-
         PWM.set_duty_cycle(pin, duty)
 
-
     def validate_pin(self, pin_list):
+        """
+        Validate a pin in the pin_list
+        :param pin_list: pin list specific to the type of pin
+        :return: pin number if valid, 99 if invalid
+        """
         pin = self.payload['pin'].upper()
         if pin not in pin_list:
             return 99
@@ -478,8 +439,12 @@ class BeagleBoneBridge:
         self.last_problem = ''
 
     def digital_input_callback(self, pin):
+        """
+        This method returns a digital pin update by publishing a message
+        :param pin: pin
+        :return:
+        """
         # if the pin has reports disabled, just ignore
-        print(pin)
         # pin_state = self.pins[gpio]
         state = GPIO.input(pin)
 
@@ -489,7 +454,10 @@ class BeagleBoneBridge:
         self.publisher.send_multipart([envelope, digital_reply_msg])
 
     def run_bb_bridge(self):
-        print('run_bb')
+        """
+        Start up the bridge
+        :return:
+        """
         # self.pi.set_mode(11, pigpio.INPUT)
         # cb1 = self.pi.callback(11, pigpio.EITHER_EDGE, self.cbf)
         while True:
@@ -499,7 +467,7 @@ class BeagleBoneBridge:
             try:
                 z = self.subscriber.recv_multipart(zmq.NOBLOCK)
                 self.payload = umsgpack.unpackb(z[1])
-                print("[%s] %s" % (z[0], self.payload))
+                # print("[%s] %s" % (z[0], self.payload))
 
                 command = self.payload['command']
                 if command in self.command_dict:
@@ -514,7 +482,8 @@ class BeagleBoneBridge:
                 time.sleep(.001)
 
     def cleanup(self):
-        pass
+        GPIO.cleanup()
+        PWM.cleanup()
 
 
 class AnalogReader(threading.Thread):
@@ -534,7 +503,6 @@ class AnalogReader(threading.Thread):
         self.board_num = board_num
         self.pin_states = pin_states
 
-
         self.context = zmq.Context()
 
         self.publisher = self.context.socket(zmq.PUB)
@@ -543,42 +511,103 @@ class AnalogReader(threading.Thread):
 
         self.publisher.connect(connect_string)
 
-        # self.reports = [False, False, False, False]
+    # noinspection PyMethodMayBeStatic
+    def convert_to_distance(self, raw_data):
+        distance = None
+        value = raw_data / 1000 * 2
+        if value > 2.45:
+            distance = 10
+        if value < .4:
+            distance = 80
+        elif 2.083 <= value <= 2.45:
+            distance = 12
+        elif 1.811 <= value <= 2.083:
+            distance = 14
+        elif 1.620 <= value <= 1.811:
+            distance = 16
+        elif 1.461 <= value <= 1.620:
+            distance = 18
+        elif 1.310 <= value <= 1.461:
+            distance = 20
+        elif 1.211 <= value <= 1.310:
+            distance = 22
+        elif 1.099 <= value <= 1.211:
+            distance = 24
+        elif 1.022 <= value <= 1.099:
+            distance = 26
+        elif .965 <= value <= 1.022:
+            distance = 28
+        elif .907 <= value <= .965:
+            distance = 30
+        elif .851 <= value <= .907:
+            distance = 32
+        elif .8 <= value <= .851:
+            distance = 34
+        elif .757 <= value <= .8:
+            distance = 36
+        elif .720 <= value <= .757:
+            distance = 38
+        elif .695 <= value <= .720:
+            distance = 40
+        elif .656 <= value <= .695:
+            distance = 42
+        elif .639 <= value <= .656:
+            distance = 44
+        elif .612 <= value <= .639:
+            distance = 46
+        elif .593 <= value <= .612:
+            distance = 48
+        elif .564 <= value <= .593:
+            distance = 50
+        elif .543 <= value <= .564:
+            distance = 52
+        elif .522 <= value <= .543:
+            distance = 54
+        elif .503 <= value <= .522:
+            distance = 56
+        elif .483 <= value <= .503:
+            distance = 58
+        elif .464 <= value <= .483:
+            distance = 60
+        elif .445 <= value <= .464:
+            distance = 62
+        elif .447 <= value <= .445:
+            distance = 64
+        elif .428 <= value <= .447:
+            distance = 66
+        elif .427 <= value <= .428:
+            distance = 68
+        elif .413 <= value <= .427:
+            distance = 70
 
-    # def set_report(self, index, value):
-    #     """
-    #     Set report table to send or deny reports
-    #     :param index: pin number index into table
-    #     :param value: True or False
-    #     :return: nothing returned
-    #     """
-    #     self.reports[index] = value
+        return distance
 
     def run(self):
         """
         Continuously monitor the A/D
         :return:
         """
-
-        print('starting analog reader thread')
-
+        value = None
         while True:
             try:
                 for entry in self.pin_states:
                     if entry['enabled']:
-                        print('run: ' + entry['pin'])
-                        value = ADC.read(entry['pin'])
-                        value = round(value, 4)
-                        print('value ' + str(value))
+                        if entry['mode'] == 'analog':
+                            value = ADC.read(entry['pin'])
+                            value = round(value, 4)
+
+                        elif entry['mode'] == 'sonar':
+                            value = ADC.read_raw(entry['pin'])
+                            value = self.convert_to_distance(value)
+
                         digital_reply_msg = umsgpack.packb({u"command": "analog_read", u"pin": entry['pin'],
                                                             u"value": str(value)})
 
                         envelope = ("B" + self.board_num).encode()
                         self.publisher.send_multipart([envelope, digital_reply_msg])
-                    time.sleep(0.001)
+                time.sleep(0.05)
             except KeyboardInterrupt:
                 sys.exit(0)
-
 
 
 def beaglebone_bridge():
@@ -586,7 +615,7 @@ def beaglebone_bridge():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", dest="board_number", default="1", help="Board Number - 1 through 10")
-    parser.add_argument("-p", dest="polarity", default="p", help="Servo polartiy: p or n")
+    parser.add_argument("-p", dest="polarity", default="p", help="Servo polarity: p or n")
     # parser.add_argument("-t", dest="board_type", default="black", help="black or green")
 
 
