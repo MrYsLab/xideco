@@ -21,7 +21,7 @@ setup(
                 'xiab = xideco.arduino_bridge.xiab:arduino_bridge',
                 'xihb = xideco.http_bridge.xihb:http_bridge',
                 'xirt = xideco.xideco_router.xirt:xideco_router',
-                'xirb = xideco.raspberrypi_bridge.xirb:raspberrypi_bridge'
+                'xirb = xideco.raspberrypi_bridge.xirb:raspberrypi_bridge',
                 'xibb = xideco.beaglebone_bridge.xibb:beaglebone_bridge'
             ]
         },
