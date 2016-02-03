@@ -5,7 +5,7 @@
     "blockSpecs": [
         [
             " ",
-            "%m.board_number %m.pin_state la broche Numérique %n comme une %m.digital_pin_mode",
+            "%m.board_number %m.pin_state la broche Numérique %s comme une %m.digital_pin_mode",
             "digital_pin_mode",
             "1",
             "activer",
@@ -14,7 +14,7 @@
         ],
         [
             " ",
-            "%m.board_number %m.pin_state la broche Analogique A%n en entrée",
+            "%m.board_number %m.pin_state la broche Analogique A%s en entrée",
             "analog_pin_mode",
             "1",
             "activer",
@@ -22,7 +22,7 @@
         ],
         [
             "",
-            "%m.board_number mettre l'état logique de la broche Numérique %n à %m.high_low",
+            "%m.board_number mettre l'état logique de la broche Numérique %s à %m.high_low",
             "digital_write",
             "1",
             "PIN",
@@ -30,7 +30,7 @@
         ],
         [
             "",
-            "%m.board_number écrire sur la broche PWM~ %n la valeur %n",
+            "%m.board_number écrire sur la broche PWM~ %s la valeur %n",
             "analog_write",
             "1",
             "PIN",
@@ -38,7 +38,7 @@
         ],
         [
             "",
-            "%m.board_number jouer le son sur la broche %n , fréquence (Hz) : %n , durée (ms) : %n",
+            "%m.board_number jouer le son sur la broche %s , fréquence (Hz) : %n , durée (ms) : %n",
             "play_tone",
             "1",
             "PIN",
@@ -47,14 +47,14 @@
         ],
         [
             "",
-            "%m.board_number arrêter le son sur la broche : %n",
+            "%m.board_number arrêter le son sur la broche : %s",
             "tone_off",
             "1",
             "PIN"
         ],
         [
             "",
-            "%m.board_number tourner le servo-moteur sur la broche %n de : %n degrés",
+            "%m.board_number tourner le servo-moteur sur la broche %s de : %n degrés",
             "set_servo_position",
             "1",
             "PIN",
@@ -62,14 +62,14 @@
         ],
         [
             "r",
-            "%m.board_number l'état logique de la broche Numérique %n",
+            "%m.board_number l'état logique de la broche Numérique %s",
             "digital_read",
             "1",
             "PIN"
         ],
         [
             "r",
-            "%m.board_number la valeur sur la broche Analogique A%n",
+            "%m.board_number la valeur sur la broche Analogique A%s",
             "analog_read",
             "1",
             "PIN"

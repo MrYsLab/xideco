@@ -35,7 +35,8 @@ from xideco.data_files.port_map import port_map
 class XidecoRouter:
     """
     This class consists of a PAIR connection to a control program bridge (i.e. - HTTP for Scratch),
-    creates a publisher for Scratch commands, and creates a set of subscribers to listen for Arduino data changes.
+    creates a publisher for Scratch commands, and creates a set of subscribers to listen
+    for board data changes.
     """
 
     def __init__(self):
@@ -87,7 +88,7 @@ class XidecoRouter:
         self.http_socket.bind(bind_string)
         self.payload = None
 
-        # establish the command publisher - to the arduino bridges
+        # establish the command publisher - to the board bridges
         self.command_publisher_socket = self.context.socket(zmq.PUB)
         bind_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
             'command_publisher_port']
@@ -107,7 +108,7 @@ class XidecoRouter:
     def route(self):
         """
         This method runs in a forever loop. It listens for commands on the PAIR and publishes them. It also
-        listens for Arduino data updates for each board via subscription and forwards the updates via the PAIR
+        listens for data updates for each board via subscription and forwards the updates via the PAIR
         :return:
         """
         while True:
@@ -122,14 +123,9 @@ class XidecoRouter:
             except KeyboardInterrupt:
                 sys.exit(0)
 
-            # see if there are any reporter messages from the arduino bridge
+            # see if there are any reporter messages from the board bridges
             try:
                 payload = self.reporter_subscriber_socket.recv_multipart(zmq.NOBLOCK)
-                # self.payload = umsgpack.unpackb(z[1])
-                # print("[%s] %s" % (z[0], self.payload))
-                # v = z[0].decode()
-                # print(v[1])
-                # command = self.payload['command']
                 self.http_socket.send_multipart(payload)
             except zmq.error.Again:
                 try:

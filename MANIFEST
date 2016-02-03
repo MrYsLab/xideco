@@ -7,6 +7,9 @@ experiments/pair_server.py
 experiments/psenvpub.py
 experiments/psenvsub.py
 experiments/psenvsub2.py
+experiments/xideco_tweeter/__init__.py
+experiments/xideco_tweeter/xihbt.py
+experiments/xideco_tweeter/xitwitter_bridge.py
 xideco/__init__.py
 xideco/arduino_bridge/__init__.py
 xideco/arduino_bridge/xiab.py

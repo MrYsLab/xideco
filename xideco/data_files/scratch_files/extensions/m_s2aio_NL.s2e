@@ -5,7 +5,7 @@
     "blockSpecs": [
         [
             " ",
-            "%m.board_number Zet %m.pin_state : Digitale pin %n als %m.digital_pin_mode",
+            "%m.board_number Zet %m.pin_state : Digitale pin %s als %m.digital_pin_mode",
             "digital_pin_mode",
             "1",
             "aan",
@@ -14,7 +14,7 @@
         ],
         [
             " ",
-            "%m.board_number Zet %m.pin_state : Analoge pin (A) %n als ingang",
+            "%m.board_number Zet %m.pin_state : Analoge pin (A) %s als ingang",
             "analog_pin_mode",
             "1",
             "aan",
@@ -22,7 +22,7 @@
         ],
         [
             "",
-            "%m.board_number DigitalWrite: Maak pin %n %m.high_low",
+            "%m.board_number DigitalWrite: Maak pin %s %m.high_low",
             "digital_write",
             "1",
             "PIN",
@@ -30,7 +30,7 @@
         ],
         [
             "",
-            "%m.board_number AnalogWrite (PWM): Maak pin %n %n",
+            "%m.board_number AnalogWrite (PWM): Maak pin %s %n",
             "analog_write",
             "1",
             "PIN",
@@ -38,7 +38,7 @@
         ],
         [
             "",
-            "%m.board_number Speel toon op pin %n , Hz: %n , ms: %n",
+            "%m.board_number Speel toon op pin %s , Hz: %n , ms: %n",
             "play_tone",
             "1",
             "PIN",
@@ -47,14 +47,14 @@
         ],
         [
             "",
-            "%m.board_number Zet toon uit op pin %n",
+            "%m.board_number Zet toon uit op pin %s",
             "tone_off",
             "1",
             "PIN"
         ],
         [
             "",
-            "%m.board_number Draai servo op pin %n %n graden",
+            "%m.board_number Draai servo op pin %s %n graden",
             "set_servo_position",
             "1",
             "PIN",
@@ -62,14 +62,14 @@
         ],
         [
             "r",
-            "%m.board_number Lees digitale pin %n uit",
+            "%m.board_number Lees digitale pin %s uit",
             "digital_read",
             "1",
             "PIN"
         ],
         [
             "r",
-            "%m.board_number Lees analoge pin (A) %n uit",
+            "%m.board_number Lees analoge pin (A) %s uit",
             "analog_read",
             "1",
             "PIN"

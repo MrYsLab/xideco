@@ -111,13 +111,6 @@ class RaspberryPiBridge:
         # a list to hold prepared problem msgpack messages
         self.problem_list = []
 
-        #     # for Snap - a dictionary of pins with their latest values
-        #     self.digital_data = {}
-        #     self.analog_data = {}
-        #
-        #
-        #     # establish the zeriomq sub and pub sockets
-        #
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
         connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
@@ -175,8 +168,6 @@ class RaspberryPiBridge:
 
         else:
             self.last_problem = '2-1\n'
-        print('called setup_analog_pin')
-
 
     def setup_digital_pin(self):
         """
@@ -265,18 +256,14 @@ class RaspberryPiBridge:
             # must be disable
             else:
                 pin_entry = self.pins[pin]
-                print(pin_entry)
                 pin_entry['enabled'] = False
                 self.pins[pin] = self.pin_entry
-                print('b')
 
-    #
     def analog_write(self):
         """
         Set a PWM configured pin to the requested value
         :return: None
         """
-        print('analog_write')
 
         # clear out any residual problem strings
         self.last_problem = '4-0\n'
@@ -297,6 +284,11 @@ class RaspberryPiBridge:
             return
 
         value = int(self.payload['value'])
+
+        if not (0 <= value <= 255):
+            selt.last_problem = '4-4\n'
+            return
+
         #     self.board.digital_write(pin, value)
         self.pi.set_PWM_dutycycle(pin, value)
 
@@ -329,7 +321,7 @@ class RaspberryPiBridge:
 
     def play_tone(self):
         """
-        This method will play a tone using the Arduino tone library. It requires FirmataPlus
+        This method will play a tone using a wave.
         :return: None
         """
         # clear out any residual problem strings
@@ -365,8 +357,6 @@ class RaspberryPiBridge:
 
         self.pi.wave_clear()  # clear all waveforms
 
-        print('play_tone')
-
     def tone_off(self):
         self.last_problem = '6-0\n'
 
@@ -384,22 +374,21 @@ class RaspberryPiBridge:
         Set a servo position
        :return:
         """
-        print('set_servo')
 
         # time to allow servo to move
         delay = .6
 
-        self.last_problem = '6-0\n'
+        self.last_problem = '7-0\n'
 
         pin = self.validate_pin()
         if pin == 99:
-            self.last_problem = '6-1\n'
+            self.last_problem = '7-1\n'
             return
 
         # get pin information
         pin_state = self.pins[pin]
         if pin_state['mode'] != pigpio.OUTPUT:
-            self.last_problem = '6-2\n'
+            self.last_problem = '7-2\n'
             return
 
         position = int(self.payload['position'])
@@ -410,7 +399,6 @@ class RaspberryPiBridge:
         position = (position * 11) + 500
 
         self.pi.set_servo_pulsewidth(pin, position)  # 0 degree
-        # print("Servo {} {} micro pulses".format(str(servos), 500))
         time.sleep(delay)
         self.pi.set_servo_pulsewidth(pin, 0)
 
@@ -424,7 +412,6 @@ class RaspberryPiBridge:
             try:
                 z = self.subscriber.recv_multipart(zmq.NOBLOCK)
                 self.payload = umsgpack.unpackb(z[1])
-                print("[%s] %s" % (z[0], self.payload))
 
                 command = self.payload['command']
                 if command in self.command_dict:
@@ -440,7 +427,6 @@ class RaspberryPiBridge:
 
     def enable_sonar(self, trigger, echo):
         self.sonar = Sonar(self.pi, trigger, echo, self.board_num)
-        print("enable sonar: " + str(trigger) + ' ' + str(echo))
         self.sonar.start()
 
     def disable_sonar(self):
@@ -461,6 +447,13 @@ class RaspberryPiBridge:
         self.last_problem = ''
 
     def cbf(self, gpio, level, tick):
+        """
+        Gpio callback method to report changes
+        :param gpio: pin
+        :param level: value
+        :param tick: time stamp
+        :return:
+        """
 
         # if the pin has reports disabled, just ignore
         pin_state = self.pins[gpio]
@@ -468,7 +461,6 @@ class RaspberryPiBridge:
         # if user changes modes suppress output from being sent upstream
         if pin_state['mode'] == pigpio.OUTPUT:
             return
-        print(gpio, level, tick)
         digital_reply_msg = umsgpack.packb({u"command": "digital_read", u"pin": str(gpio), u"value": str(level)})
 
         envelope = ("B" + self.board_num).encode()
@@ -553,6 +545,13 @@ class Sonar(threading.Thread):
         self._inited = True
 
     def _cbf(self, gpio, level, tick):
+        """
+        Callback from sonar data changes
+        :param gpio: pin
+        :param level: value
+        :param tick: timestamp
+        :return:
+        """
         if gpio == self._trig:
             if level == 0:  # trigger sent
                 self._triggered = True
@@ -588,8 +587,6 @@ class Sonar(threading.Thread):
                 sys.exit(0)
         else:
             return None
-            # print('goodbye')
-            # sys.exit(0)
 
     def cancel(self):
         """
@@ -684,16 +681,18 @@ class AtoD(threading.Thread):
                     a_out += 1
                     self.pi.i2c_write_byte_data(self.handle, 0x40 | ((a + 1) & 0x03), a_out & 0xFF)
                     v = self.pi.i2c_read_byte(self.handle)
-                    print('a: ' + str(a) + 'v:' + str(v))
                     digital_reply_msg = umsgpack.packb({u"command": "analog_read", u"pin": str(a),
                                                         u"value": str(v)})
-
                     envelope = ("B" + self.board_num).encode()
                     self.publisher.send_multipart([envelope, digital_reply_msg])
             time.sleep(0.04)
 
 
 def raspberrypi_bridge():
+    """
+    Main function for the raspberry pi bridge
+    :return:
+    """
     # noinspection PyShadowingNames
 
     parser = argparse.ArgumentParser()

@@ -5,7 +5,7 @@
     "blockSpecs": [
         [
             " ",
-            "%m.board_number %m.pin_state Ψηφιακό PIN %n για %m.digital_pin_mode",
+            "%m.board_number %m.pin_state Ψηφιακό PIN %s για %m.digital_pin_mode",
             "digital_pin_mode",
             "1",
             "Ενεργοποίηση",
@@ -14,7 +14,7 @@
         ],
         [
             " ",
-            "%m.board_number %m.pin_state Αναλογικό PIN (A) %n για Είσοδο",
+            "%m.board_number %m.pin_state Αναλογικό PIN (A) %s για Είσοδο",
             "analog_pin_mode",
             "1",
             "Ενεργοποίηση",
@@ -22,7 +22,7 @@
         ],
         [
             "",
-            "%m.board_number Ψηφιακή Εγγραφή όρισε Pin %n σε %m.high_low",
+            "%m.board_number Ψηφιακή Εγγραφή όρισε Pin %s σε %m.high_low",
             "digital_write",
             "1",
             "PIN",
@@ -30,7 +30,7 @@
         ],
         [
             "",
-            "%m.board_number Αναλογική Εγγραφή (PWM) όρισε Pin %n σε %n",
+            "%m.board_number Αναλογική Εγγραφή (PWM) όρισε Pin %s σε %n",
             "analog_write",
             "1",
             "PIN",
@@ -38,7 +38,7 @@
         ],
         [
             "",
-            "%m.board_number Παίξε τόνο στο Pin: %n HZ: %n για ms: %n",
+            "%m.board_number Παίξε τόνο στο Pin: %s HZ: %n για ms: %n",
             "play_tone",
             "1",
             "PIN",
@@ -47,14 +47,14 @@
         ],
         [
             "",
-            "%m.board_number Σταμάτησε τόνο στο Pin: %n",
+            "%m.board_number Σταμάτησε τόνο στο Pin: %s",
             "tone_off",
             "1",
             "PIN"
         ],
         [
             "",
-            "%m.board_number Μετακίνησε το Σέρβο στο Pin %n κατά μοίρες: %n",
+            "%m.board_number Μετακίνησε το Σέρβο στο Pin %s κατά μοίρες: %n",
             "set_servo_position",
             "1",
             "PIN",
@@ -62,14 +62,14 @@
         ],
         [
             "r",
-            "%m.board_number Διάβασε Ψηφιακή Είσοδο στο Pin %n",
+            "%m.board_number Διάβασε Ψηφιακή Είσοδο στο Pin %s",
             "digital_read",
             "1",
             "PIN"
         ],
         [
             "r",
-            "%m.board_number Διάβασε Αναλογική Είσοδο στο Pin (A) %n",
+            "%m.board_number Διάβασε Αναλογική Είσοδο στο Pin (A) %s",
             "analog_read",
             "1",
             "PIN"
