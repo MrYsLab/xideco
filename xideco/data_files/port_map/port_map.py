@@ -24,10 +24,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 This file contains a dictionary specifying various IP port numbers used with ZeroMQ sockets.
 """
 
-# The port selected for the aiohttp server running in the HTTP Bridge is
-# fixed as 50208. Scratch does not allow dynamic port assignment.
+# This map contains the ip address of the computer currently running the router.
+# This address must be manually modified to match the IP address of the router computer.
+# All other entries are fixed and should not be modifified.
 
-port_map = {"router_ip_address": "192.168.2.101", "http_port": "43124", "command_publisher_port": "43125",
-            "reporter_publisher_port": "43137",
-            "1": "43127", "2": "43128", "3": "43129", "4": "43130", "5": "43131", "6": "43132",
-            "7": "43133", "8": "43134", "9": "43135", "10": "43136"}
+# The publish_to_router_port should be used by all entities that wish to publish information.
+# the subscribe_to_router_port should be used by all entities that with to subscribe to messages. The
+# subscribers need to set a topic filter to receive the messages of interest.
+
+
+port_map = {"router_ip_address": "192.168.2.101",
+            "publish_to_router_port": "43124", "subscribe_to_router_port": "43125"}

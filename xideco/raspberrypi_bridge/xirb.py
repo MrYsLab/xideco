@@ -108,13 +108,11 @@ class RaspberryPiBridge:
         pigpio_ver = self.pi.get_pigpio_version()
         print('PIGPIO REV: ' + str(pigpio_ver))
 
-        # a list to hold prepared problem msgpack messages
-        self.problem_list = []
-
+        # establish the zeriomq sub and pub sockets
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
         connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'command_publisher_port']
+            'subscribe_to_router_port']
         self.subscriber.connect(connect_string)
 
         # create the topic we wish to subscribe to
@@ -124,7 +122,7 @@ class RaspberryPiBridge:
 
         self.publisher = self.context.socket(zmq.PUB)
         connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'reporter_publisher_port']
+            'publish_to_router_port']
 
         self.publisher.connect(connect_string)
 

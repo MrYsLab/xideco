@@ -72,11 +72,10 @@ class ArduinoBridge:
         self.get_pin_capabilities()
 
         # establish the zeriomq sub and pub sockets
-
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
         connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'command_publisher_port']
+            'subscribe_to_router_port']
         self.subscriber.connect(connect_string)
 
         # create the topic we wish to subscribe to
@@ -86,7 +85,7 @@ class ArduinoBridge:
 
         self.publisher = self.context.socket(zmq.PUB)
         connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'reporter_publisher_port']
+            'publish_to_router_port']
 
         self.publisher.connect(connect_string)
 
@@ -440,7 +439,7 @@ class ArduinoBridge:
                 else:
                     print("can't execute unknown command'")
                 self.board.sleep(.001)
-            except:
+            except zmq.error.Again:
                 self.board.sleep(.001)
             # return
 

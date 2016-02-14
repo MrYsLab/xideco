@@ -118,13 +118,24 @@ class HttpBridge:
 
         srv = await loop.create_server(app.make_handler(), '127.0.0.1', 50208)
         self.loop = loop
-        # create a zeromq pair client
-        context = zmq.Context()
 
-        self.router_socket = context.socket(zmq.PAIR)
-        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map['http_port']
+        self.context = zmq.Context()
+        self.subscriber = self.context.socket(zmq.SUB)
+        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+            'subscribe_to_router_port']
+        self.subscriber.connect(connect_string)
 
-        self.router_socket.connect(connect_string)
+        # create the topics we wish to subscribe to
+        for x in range(1, 11):
+            env_string = "B" + str(x)
+            envelope = env_string.encode()
+            self.subscriber.setsockopt(zmq.SUBSCRIBE, envelope)
+
+        self.publisher = self.context.socket(zmq.PUB)
+        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+            'publish_to_router_port']
+
+        self.publisher.connect(connect_string)
 
         app.router.add_route('GET', '/poll', self.poll)
         await self.keep_alive()
@@ -169,7 +180,7 @@ class HttpBridge:
 
         board = 'A' + board
         board = board.encode()
-        self.router_socket.send_multipart([board, command_msg])
+        self.publisher.send_multipart([board, command_msg])
 
         return web.Response(body="ok".encode('utf-8'))
 
@@ -313,7 +324,7 @@ class HttpBridge:
         """
         m_topic = 'A' + board
         topic = m_topic.encode()
-        self.router_socket.send_multipart([topic, message])
+        self.publisher.send_multipart([topic, message])
 
     async def keep_alive(self):
         """
@@ -324,7 +335,7 @@ class HttpBridge:
 
             # check for reporter messages
             try:
-                [address, contents] = self.router_socket.recv_multipart(zmq.NOBLOCK)
+                [address, contents] = self.subscriber.recv_multipart(zmq.NOBLOCK)
                 payload = umsgpack.unpackb(contents)
                 # print("[%s] %s" % (address, payload))
                 board_num = address.decode()

@@ -26,7 +26,6 @@ import sys
 import time
 import os
 
-# noinspection PyPackageRequirements
 import zmq
 
 from xideco.data_files.port_map import port_map
@@ -51,7 +50,14 @@ class XidecoRouter:
         self.ip_addr = s.getsockname()[0]
 
         # identify the router ip address for the user on the console
+        print('\n**************************************')
+        print('Xideco Router')
+        print('**************************************')
+
+        print('\n**************************************')
         print('router IP address = ' + self.ip_addr)
+        print('**************************************')
+
 
         # find the path to the data files needed for operation
         path = sys.path
@@ -74,70 +80,50 @@ class XidecoRouter:
             print('Cannot locate xideco configuration directory.')
             sys.exit(0)
 
-        print('\nport_map.py is located at:')
-        print(self.base_path + '/data_files/port_map\n')
+        print('\nport_map.py is located at:\n')
+        print(self.base_path + '/data_files/port_map')
 
-        print("Set router_ip_address in the port_map to the address printed above.")
+        print('\nEdit ' + self.base_path + '/data_files/port_map/port_map.py\n')
+        print('Set the router_ip_address entry in port_map.py to the address printed above')
+        print('for each computer running Xideco.\n')
+        print('NOTE: The path to port_map.py may be different on different computers.')
 
-        self.context = zmq.Context()
 
-        # bind to the http server port
-        self.http_socket = self.context.socket(zmq.PAIR)
+        self.router = zmq.Context()
+        # establish router as a ZMQ FORWARDER Device
 
-        bind_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map["http_port"]
-        self.http_socket.bind(bind_string)
-        self.payload = None
+        # subscribe to any message that any entity publishes
+        self.publish_to_router = self.router.socket(zmq.SUB)
+        bind_string = 'tcp://' + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+            'publish_to_router_port']
+        self.publish_to_router.bind(bind_string)
+        # Don't filter any incoming messages, just pass them through
+        self.publish_to_router.setsockopt_string(zmq.SUBSCRIBE, '')
 
-        # establish the command publisher - to the board bridges
-        self.command_publisher_socket = self.context.socket(zmq.PUB)
-        bind_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'command_publisher_port']
-        self.command_publisher_socket.bind(bind_string)
+        # publish these messages
+        self.subscribe_to_router = self.router.socket(zmq.PUB)
+        bind_string = 'tcp://' + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+            'subscribe_to_router_port']
+        self.subscribe_to_router.bind(bind_string)
 
-        # subscribe to report messages
-        self.reporter_subscriber_socket = self.context.socket(zmq.SUB)
-        bind_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'reporter_publisher_port']
-        self.reporter_subscriber_socket.bind(bind_string)
+        zmq.device(zmq.FORWARDER, self.publish_to_router, self.subscribe_to_router)
 
-        for x in range(1, 11):
-            env_string = "B" + str(x)
-            envelope = env_string.encode()
-            self.reporter_subscriber_socket.setsockopt(zmq.SUBSCRIBE, envelope)
-
+    # noinspection PyMethodMayBeStatic
     def route(self):
         """
-        This method runs in a forever loop. It listens for commands on the PAIR and publishes them. It also
-        listens for data updates for each board via subscription and forwards the updates via the PAIR
+        This method runs in a forever loop.
         :return:
         """
         while True:
-            # see if there are any command messages from the http bridge
             try:
-                [address, contents] = self.http_socket.recv_multipart(zmq.NOBLOCK)
-                # x = umsgpack.unpackb(contents)
-                # print("[%s] %s" % (address, x))
-                self.command_publisher_socket.send_multipart([address, contents])
-            except zmq.error.Again:
-                pass
+                time.sleep(.001)
             except KeyboardInterrupt:
                 sys.exit(0)
 
-            # see if there are any reporter messages from the board bridges
-            try:
-                payload = self.reporter_subscriber_socket.recv_multipart(zmq.NOBLOCK)
-                self.http_socket.send_multipart(payload)
-            except zmq.error.Again:
-                try:
-                    time.sleep(.001)
-                except KeyboardInterrupt:
-                    sys.exit(0)
-
     def clean_up(self):
-        self.http_socket.close()
-        self.command_publisher_socket.close()
-        self.reporter_subscriber_socket.close()
-        self.context.term()
+        self.publish_to_router.close()
+        self.subscribe_to_router.close()
+        self.router.term()
 
 
 def xideco_router():
@@ -149,7 +135,7 @@ def xideco_router():
     # signal handler function called when Control-C occurs
     # noinspection PyShadowingNames,PyUnusedLocal,PyUnusedLocal
     def signal_handler(signal, frame):
-        print("Control-C detected. See you soon.")
+        print('Control-C detected. See you soon.')
 
         xideco_router.clean_up()
 
