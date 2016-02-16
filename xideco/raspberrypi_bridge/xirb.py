@@ -43,13 +43,13 @@ class RaspberryPiBridge:
 
     """
 
-    def __init__(self, pi, board_num):
+    def __init__(self, pi, board_num, router_ip_address):
         """
         :param pigpio: pigpio instance
         :param board_num: System Board Number (1-10)
         :return:
         """
-        print('xirb version: 26 Jan 2016 11:16')
+        print('xirb version: 15 Feb 2016 11:16')
         self.pi = pi
 
         # there are 3 types of raspberry pi boards dependent upon rev number:
@@ -72,6 +72,8 @@ class RaspberryPiBridge:
 
         # board type - 1, 2 or 3
         self.pi_board_type = None
+
+        self.router_ip_address = router_ip_address
 
         # a list of dictionary items, each entry is a single pin
         # dictionary entries are {mode, enabled}
@@ -108,21 +110,32 @@ class RaspberryPiBridge:
         pigpio_ver = self.pi.get_pigpio_version()
         print('PIGPIO REV: ' + str(pigpio_ver))
 
+        if self.router_ip_address == 'None':
+            self.router_ip_address = port_map.port_map['router_ip_address']
+        else:
+            self.router_ip_address = router_ip_address
+
+        print('\n**************************************')
+        print('Using router IP address: ' + self.router_ip_address)
+        print('**************************************')
+
+        print('\nTo specify some other address for the router, use the -r command line option')
+
         # establish the zeriomq sub and pub sockets
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
-        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'subscribe_to_router_port']
+        connect_string = "tcp://" + self.router_ip_address + ':' + port_map.port_map['subscribe_to_router_port']
         self.subscriber.connect(connect_string)
 
         # create the topic we wish to subscribe to
         env_string = "A" + self.board_num
         envelope = env_string.encode()
         self.subscriber.setsockopt(zmq.SUBSCRIBE, envelope)
+        # subscribe to broadcast i2c message - i2c messages can also be board specific with A + board number
+        self.subscriber.setsockopt(zmq.SUBSCRIBE, 'Q'.encode())
 
         self.publisher = self.context.socket(zmq.PUB)
-        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'publish_to_router_port']
+        connect_string = "tcp://" + self.router_ip_address + ':' + port_map.port_map['publish_to_router_port']
 
         self.publisher.connect(connect_string)
 
@@ -132,12 +145,14 @@ class RaspberryPiBridge:
         self.command_dict = {'digital_pin_mode': self.setup_digital_pin, 'digital_write': self.digital_write,
                              'analog_pin_mode': self.setup_analog_pin, 'analog_write': self.analog_write,
                              'set_servo_position': self.set_servo_position, 'play_tone': self.play_tone,
-                             'tone_off': self.tone_off}
+                             'tone_off': self.tone_off, 'i2c_request': self.i2c_request}
 
         self.last_problem = ''
 
         self.sonar = None
         self.a_to_d = None
+
+        self.i2c_handle_dict = {}
 
     def setup_analog_pin(self):
         """
@@ -150,8 +165,8 @@ class RaspberryPiBridge:
         self.last_problem = '2-0\n'
 
         if not self.a_to_d:
-                self.a_to_d = AtoD(self.pi, 1, 0x48, self.board_num)
-                self.a_to_d.start()
+            self.a_to_d = AtoD(self.pi, 1, 0x48, self.board_num)
+            self.a_to_d.start()
 
         # test pin range 0-3
 
@@ -287,7 +302,7 @@ class RaspberryPiBridge:
             selt.last_problem = '4-4\n'
             return
 
-        #     self.board.digital_write(pin, value)
+        # self.board.digital_write(pin, value)
         self.pi.set_PWM_dutycycle(pin, value)
 
     def digital_write(self):
@@ -400,6 +415,38 @@ class RaspberryPiBridge:
         time.sleep(delay)
         self.pi.set_servo_pulsewidth(pin, 0)
 
+    def i2c_request(self):
+        cmd = self.payload['cmd']
+        addr = self.payload['device_address']
+
+        if cmd == 'init':
+            handle = self.pi.i2c_open(1, addr)
+            self.i2c_handle_dict.update({addr: handle})
+        elif cmd == 'write_byte':
+            # get handle
+            value = self.payload['value']
+            handle = self.i2c_handle_dict[addr]
+            register = self.payload['register']
+            self.pi.i2c_write_byte_data(handle, register, value)
+        elif cmd == 'read_block':
+            num_bytes = self.payload['num_bytes']
+            handle = self.i2c_handle_dict[addr]
+            register = self.payload['register']
+            data = self.pi.i2c_read_i2c_block_data(handle, register, num_bytes)
+            self.report_i2c_data(data)
+        else:
+            print('unknown cmd')
+
+    def report_i2c_data(self, data):
+        # create a topic specific to the board number of this board
+        envelope = ("B" + self.board_num).encode()
+
+        rdata = str(data[1])
+
+        msg = umsgpack.packb({u"command": "i2c_reply", u"board": 1, u"data": rdata})
+
+        self.publisher.send_multipart([envelope, msg])
+
     def run_raspberry_bridge(self):
         # self.pi.set_mode(11, pigpio.INPUT)
         # cb1 = self.pi.callback(11, pigpio.EITHER_EDGE, self.cbf)
@@ -409,6 +456,8 @@ class RaspberryPiBridge:
             # noinspection PyBroadException
             try:
                 z = self.subscriber.recv_multipart(zmq.NOBLOCK)
+
+                print(z)
                 self.payload = umsgpack.unpackb(z[1])
 
                 command = self.payload['command']
@@ -444,6 +493,7 @@ class RaspberryPiBridge:
         self.publisher.send_multipart([envelope, msg])
         self.last_problem = ''
 
+    # noinspection PyUnusedLocal
     def cbf(self, gpio, level, tick):
         """
         Gpio callback method to report changes
@@ -695,15 +745,15 @@ def raspberrypi_bridge():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", dest="board_number", default="1", help="Board Number - 1 through 10")
+    parser.add_argument('-r', dest='router_ip_address', default='None', help='Router IP Address')
 
     args = parser.parse_args()
 
     pi = pigpio.pi()
 
     board_num = args.board_number
-    rpi_bridge = RaspberryPiBridge(pi, board_num)
-    # while True:
-    # rpi_bridge.run_raspberry_bridge()
+    router_ip_address = args.router_ip_address
+    rpi_bridge = RaspberryPiBridge(pi, board_num, router_ip_address)
     try:
         rpi_bridge.run_raspberry_bridge()
     except KeyboardInterrupt:
