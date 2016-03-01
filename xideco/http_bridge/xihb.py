@@ -19,7 +19,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
-
+import argparse
 import asyncio
 import configparser
 import os
@@ -38,7 +38,7 @@ class HttpBridge:
     This is an HTTP bridge that translates Scratch HTTP requests into xideco protocol messages
    """
 
-    def __init__(self):
+    def __init__(self, router_ip_address = None):
         """
         This is the constructor for the xideco HTTP bridge
         :return:
@@ -48,6 +48,11 @@ class HttpBridge:
         path = sys.path
 
         self.base_path = None
+
+        self.router_ip_address = router_ip_address
+
+
+        # establish the zeriomq sub and pub sockets
 
         # get the prefix
         prefix = sys.prefix
@@ -64,6 +69,18 @@ class HttpBridge:
         if not self.base_path:
             print('Cannot locate xideco configuration directory.')
             sys.exit(0)
+
+        if self.router_ip_address == 'None' :
+            self.router_ip_address = port_map.port_map['router_ip_address']
+        else:
+            self.router_ip_address = router_ip_address
+
+        print('\n**************************************')
+        print('Scratch HTTP Bridge - xihb')
+        print('Using router IP address: ' + self.router_ip_address)
+        print('**************************************')
+
+        print('\nTo specify some other address for the router, use the -r command line option')
 
         print('\nScratch Project Files Located at:')
         print(self.base_path + '/data_files/scratch_files/projects\n')
@@ -132,7 +149,7 @@ class HttpBridge:
             self.subscriber.setsockopt(zmq.SUBSCRIBE, envelope)
 
         self.publisher = self.context.socket(zmq.PUB)
-        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+        connect_string = "tcp://" + self.router_ip_address + ':' + port_map.port_map[
             'publish_to_router_port']
 
         self.publisher.connect(connect_string)
@@ -391,7 +408,15 @@ class HttpBridge:
 def http_bridge():
     # noinspection PyShadowingNames
 
-    http_bridge = HttpBridge()
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-r', dest='router_ip_address', default='None', help='Router IP Address')
+
+    args = parser.parse_args()
+    router_ip_address = args.router_ip_address
+
+
+    http_bridge = HttpBridge(router_ip_address)
     # noinspection PyShadowingNames
     loop = asyncio.get_event_loop()
 

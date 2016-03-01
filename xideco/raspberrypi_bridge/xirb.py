@@ -49,7 +49,6 @@ class RaspberryPiBridge:
         :param board_num: System Board Number (1-10)
         :return:
         """
-        print('xirb version: 15 Feb 2016 11:16')
         self.pi = pi
 
         # there are 3 types of raspberry pi boards dependent upon rev number:
@@ -115,6 +114,7 @@ class RaspberryPiBridge:
         else:
             self.router_ip_address = router_ip_address
 
+        print('Xideco Rapsberry Pi Bridge - xirp')
         print('\n**************************************')
         print('Using router IP address: ' + self.router_ip_address)
         print('**************************************')
@@ -441,9 +441,12 @@ class RaspberryPiBridge:
         # create a topic specific to the board number of this board
         envelope = ("B" + self.board_num).encode()
 
-        rdata = str(data[1])
+        # extract bytes from returned byte array and place in a list
+        rdata = []
+        for x in data[1]:
+            rdata.append(x)
 
-        msg = umsgpack.packb({u"command": "i2c_reply", u"board": 1, u"data": rdata})
+        msg = umsgpack.packb({u"command": "i2c_reply", u"board": self.board_num, u"data": rdata})
 
         self.publisher.send_multipart([envelope, msg])
 
@@ -457,7 +460,7 @@ class RaspberryPiBridge:
             try:
                 z = self.subscriber.recv_multipart(zmq.NOBLOCK)
 
-                print(z)
+                #print(z)
                 self.payload = umsgpack.unpackb(z[1])
 
                 command = self.payload['command']

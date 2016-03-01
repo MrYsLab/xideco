@@ -19,12 +19,11 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
-
+import os
 import signal
 import socket
 import sys
 import time
-import os
 
 import zmq
 
@@ -41,6 +40,7 @@ class XidecoRouter:
     def __init__(self):
         """
         This is the constructor for the XidecoRouter class.
+        :param: use_port_map: If true, use the ip address in the port map, if false, use discovered ip address
         :return: None
         """
         # figure out the IP address of the router
@@ -50,13 +50,12 @@ class XidecoRouter:
         self.ip_addr = s.getsockname()[0]
 
         # identify the router ip address for the user on the console
-        print('\n**************************************')
-        print('Xideco Router')
-        print('**************************************')
+        print('\nXideco Router - xirt')
 
-        print('\n**************************************')
-        print('router IP address = ' + self.ip_addr)
-        print('**************************************')
+        print('\n******************************************')
+        print('Using router IP address = ' + self.ip_addr)
+        print('******************************************')
+
 
 
         # find the path to the data files needed for operation
@@ -80,21 +79,21 @@ class XidecoRouter:
             print('Cannot locate xideco configuration directory.')
             sys.exit(0)
 
-        print('\nport_map.py is located at:\n')
-        print(self.base_path + '/data_files/port_map')
+        print('\nIf using the port map, port_map.py is located at:\n')
+        print(self.base_path + '/data_files/port_map\n')
 
-        print('\nEdit ' + self.base_path + '/data_files/port_map/port_map.py\n')
-        print('Set the router_ip_address entry in port_map.py to the address printed above')
-        print('for each computer running Xideco.\n')
-        print('NOTE: The path to port_map.py may be different on different computers.')
+        print('NOTE: The path to port_map.py may be different for each Operating System/Computer')
 
+        print('\nSet the router_ip_address entry in port_map.py to the address printed above')
+        print('for each computer running Xideco, or optionally set the address manually for each Xideco module')
+        print('using the command line options.\n')
 
         self.router = zmq.Context()
         # establish router as a ZMQ FORWARDER Device
 
         # subscribe to any message that any entity publishes
         self.publish_to_router = self.router.socket(zmq.SUB)
-        bind_string = 'tcp://' + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+        bind_string = 'tcp://' + self.ip_addr + ':' + port_map.port_map[
             'publish_to_router_port']
         self.publish_to_router.bind(bind_string)
         # Don't filter any incoming messages, just pass them through
@@ -102,7 +101,7 @@ class XidecoRouter:
 
         # publish these messages
         self.subscribe_to_router = self.router.socket(zmq.PUB)
-        bind_string = 'tcp://' + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+        bind_string = 'tcp://' + self.ip_addr + ':' + port_map.port_map[
             'subscribe_to_router_port']
         self.subscribe_to_router.bind(bind_string)
 

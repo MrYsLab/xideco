@@ -39,7 +39,7 @@ class BeagleBoneI2CBridge:
 
     """
 
-    def __init__(self, board_num, router_ip_address):
+    def __init__(self, board_num, router_ip_address, publisher_socket, subscriber_socket):
         """
         :param board_num: System Board Number (1-10)
         :param board_type: "black" or "green"
@@ -47,23 +47,26 @@ class BeagleBoneI2CBridge:
         :return:
         """
         self.board_num = board_num
-        self.router_ip_address = router_ip_address
-        if self.router_ip_address == 'None':
-            print('You must use the -r option when starting this module')
+        if router_ip_address == 'None':
+            print('You must use the -r command line option to specify the router IP Address')
             sys.exit(0)
         else:
             self.router_ip_address = router_ip_address
 
-        print('\n********************************************************')
-        print('Using router IP address: ' + self.router_ip_address)
-        print('**********************************************************')
+        self.publisher_socket = publisher_socket
+        self.subscriber_socket = subscriber_socket
 
-        print('\nTo specify some other address for the router, use the -r command line option')
+        print('\n*****************************************')
+        print('BeagleBone Black i2c Interface - xibbi2c')
+        print('Using router IP address: ' + self.router_ip_address)
+        print('Publisher Socket: ' + self.publisher_socket)
+        print('Subscriber Socket: ' + self.subscriber_socket)
+        print('*****************************************')
 
         # establish the zeriomq sub and pub sockets
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
-        connect_string = "tcp://" + self.router_ip_address + ':' + '43125'
+        connect_string = "tcp://" + self.router_ip_address + ':' + self.subscriber_socket
         self.subscriber.connect(connect_string)
 
         # create the topic we wish to subscribe to
@@ -74,7 +77,7 @@ class BeagleBoneI2CBridge:
         self.subscriber.setsockopt(zmq.SUBSCRIBE, 'Q'.encode())
 
         self.publisher = self.context.socket(zmq.PUB)
-        connect_string = "tcp://" + self.router_ip_address + ':' + '43124'
+        connect_string = "tcp://" + self.router_ip_address + ':' + self.publisher_socket
 
         self.publisher.connect(connect_string)
 
@@ -101,7 +104,7 @@ class BeagleBoneI2CBridge:
             handle = self.i2c_handle_dict[addr]
             register = self.payload['register']
             data = handle.readList(register, num_bytes)
-            time.sleep(.1)
+            time.sleep(.0001)
             self.report_i2c_data(data)
         else:
             print('unknown cmd')
@@ -110,7 +113,7 @@ class BeagleBoneI2CBridge:
         # create a topic specific to the board number of this board
         envelope = ("B" + self.board_num).encode()
 
-        msg = umsgpack.packb({u"command": "i2c_reply", u"board": 1, u"data": data})
+        msg = umsgpack.packb({u"command": "i2c_reply", u"board": self.board_num, u"data": data})
 
         self.publisher.send_multipart([envelope, msg])
 
@@ -128,18 +131,18 @@ class BeagleBoneI2CBridge:
                 self.payload = umsgpack.unpackb(z[1])
                 # print("[%s] %s" % (z[0], self.payload))
 
-                print(self.payload)
+                # print(self.payload)
                 command = self.payload['command']
                 if command == 'i2c_request':
                     self.i2c_request()
                 else:
                     # print("can't execute unknown command'")
                     pass
-                time.sleep(.001)
+                time.sleep(.0001)
             except KeyboardInterrupt:
                 sys.exit(0)
             except zmq.error.Again:
-                time.sleep(.001)
+                time.sleep(.0001)
 
 
 def beaglebone_i2c_bridge():
@@ -147,14 +150,19 @@ def beaglebone_i2c_bridge():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", dest="board_number", default="1", help="Board Number - 1 through 10")
-    parser.add_argument('-r', dest='router_ip_address', default='None', help='Router IP Address')
+    parser.add_argument("-p", dest="publisher_socket", default="43124", help="Publisher Socket Number")
+    parser.add_argument("-s", dest="subscriber_socket", default="43125", help="Publisher Socket Number")
+    parser.add_argument("-r", dest="router_ip_address", default="None", help="Router IP Address")
 
     args = parser.parse_args()
 
     board_num = args.board_number
     router_ip_address = args.router_ip_address
+    publisher_socket = args.publisher_socket
+    subscriber_socket = args.subscriber_socket
 
-    bb_bridge = BeagleBoneI2CBridge(board_num, router_ip_address)
+    bb_bridge = BeagleBoneI2CBridge(board_num, router_ip_address, publisher_socket,
+                                    subscriber_socket)
     try:
         bb_bridge.run_bb_i2c_bridge()
     except KeyboardInterrupt:

@@ -80,6 +80,7 @@ class ArduinoBridge:
             self.router_ip_address = router_ip_address
 
         print('\n**************************************')
+        print('Arduino Bridge - xiab')
         print('Using router IP address: ' + self.router_ip_address)
         print('**************************************')
 
@@ -452,8 +453,8 @@ class ArduinoBridge:
             register = self.payload['register']
             self.i2c_report_pending = True
 
-            data = self.board.i2c_read_request(addr, register, num_bytes, Constants.I2C_READ, self.report_i2c_data)
-            self.board.sleep(.1)
+            self.board.i2c_read_request(addr, register, num_bytes, Constants.I2C_READ, self.report_i2c_data)
+            self.board.sleep(.001)
         else:
             print('unknown cmd')
 
@@ -461,7 +462,7 @@ class ArduinoBridge:
         # create a topic specific to the board number of this board
         envelope = ("B" + self.board_num).encode()
 
-        msg = umsgpack.packb({u"command": "i2c_reply", u"board": 1, u"data": data[2:]})
+        msg = umsgpack.packb({u"command": "i2c_reply", u"board": self.board_num, u"data": data[2:]})
 
         self.publisher.send_multipart([envelope, msg])
         self.i2c_report_pending = False

@@ -33,5 +33,5 @@ This file contains a dictionary specifying various IP port numbers used with Zer
 # subscribers need to set a topic filter to receive the messages of interest.
 
 
-port_map = {"router_ip_address": "192.168.2.101",
+port_map = {"router_ip_address": "192.168.2.192",
             "publish_to_router_port": "43124", "subscribe_to_router_port": "43125"}
