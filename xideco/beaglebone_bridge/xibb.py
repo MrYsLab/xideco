@@ -45,16 +45,18 @@ class BeagleBoneBridge:
 
     """
 
-    def __init__(self, board_num, board_type, servo_polarity):
+    def __init__(self, board_num, board_type, servo_polarity, router_ip_address):
         """
         :param board_num: System Board Number (1-10)
         :param board_type: "black" or "green"
         :param servo_polarity: 1 or 0
+        :param: router_ip_address: IP address of xideco router
         :return:
         """
         self.board_num = board_num
         self.board_type = board_type.lower()
         self.servo_polarity = servo_polarity
+        self.router_ip_address = router_ip_address
 
         self.payload = None
         self.black_gpio_pins = ["P9_11", "P9_12", "P9_13", "P9_14", "P9_15", "P9_16", "P9_17", "P9_18",
@@ -97,20 +99,34 @@ class BeagleBoneBridge:
             entry = {'pin': x, 'mode': None, 'enabled': False}
             self.analog_pin_states.append(entry)
 
+        # establish the zeriomq sub and pub sockets
+        if self.router_ip_address == 'None':
+            self.router_ip_address = port_map.port_map['router_ip_address']
+        else:
+            self.router_ip_address = router_ip_address
+
+        print('\n**************************************')
+        print('BeagleBone Black  Bridge - xibb')
+        print('Using router IP address: ' + self.router_ip_address)
+        print('**************************************')
+
+        print('\nTo specify some other address for the router, use the -r command line option')
+
+        # establish the zeriomq sub and pub sockets
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
-        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'command_publisher_port']
+        connect_string = "tcp://" + self.router_ip_address + ':' + port_map.port_map['subscribe_to_router_port']
         self.subscriber.connect(connect_string)
 
         # create the topic we wish to subscribe to
         env_string = "A" + self.board_num
         envelope = env_string.encode()
         self.subscriber.setsockopt(zmq.SUBSCRIBE, envelope)
+        # subscribe to broadcast i2c message - i2c messages can also be board specific with A + board number
+        self.subscriber.setsockopt(zmq.SUBSCRIBE, 'Q'.encode())
 
         self.publisher = self.context.socket(zmq.PUB)
-        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'reporter_publisher_port']
+        connect_string = "tcp://" + self.router_ip_address + ':' + port_map.port_map['publish_to_router_port']
 
         self.publisher.connect(connect_string)
 
@@ -470,10 +486,13 @@ class BeagleBoneBridge:
                 # print("[%s] %s" % (z[0], self.payload))
 
                 command = self.payload['command']
-                if command in self.command_dict:
+                if command == 'i2c_request':
+                    time.sleep(.001)
+                    continue
+                elif command in self.command_dict:
                     self.command_dict[command]()
                 else:
-                    print("can't execute unknown command'")
+                    print("can't execute unknown command", str(command))
                     # time.sleep(.001)
             except KeyboardInterrupt:
                 self.cleanup()
@@ -616,6 +635,8 @@ def beaglebone_bridge():
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", dest="board_number", default="1", help="Board Number - 1 through 10")
     parser.add_argument("-p", dest="polarity", default="p", help="Servo polarity: p or n")
+    parser.add_argument('-r', dest='router_ip_address', default='None', help='Router IP Address')
+
     # parser.add_argument("-t", dest="board_type", default="black", help="black or green")
 
 
@@ -628,7 +649,11 @@ def beaglebone_bridge():
         servo_polarity = 1
     else:
         servo_polarity = 0
-    bb_bridge = BeagleBoneBridge(board_num, board_type, servo_polarity)
+
+    router_ip_address = args.router_ip_address
+
+    bb_bridge = BeagleBoneBridge(board_num, board_type, servo_polarity, router_ip_address)
+
     try:
         bb_bridge.run_bb_bridge()
     except KeyboardInterrupt:

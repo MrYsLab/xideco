@@ -39,7 +39,7 @@ class ArduinoBridge:
     The Arduino Bridge provides the protocol bridge between Xideco and Firmata
     """
 
-    def __init__(self, pymata_board, board_num):
+    def __init__(self, pymata_board, board_num, router_ip_address):
         """
         :param pymata_board: Pymata-aio instance
         :param board_num: Arduino Board Number (1-10)
@@ -48,6 +48,8 @@ class ArduinoBridge:
 
         self.board_num = board_num
         self.board = pymata_board
+        self.router_ip_address = router_ip_address
+
 
         # lists of digital pin capabilities
         # These lists contain the pins numbers that support the capability
@@ -72,21 +74,33 @@ class ArduinoBridge:
         self.get_pin_capabilities()
 
         # establish the zeriomq sub and pub sockets
+        if self.router_ip_address == 'None':
+            self.router_ip_address = port_map.port_map['router_ip_address']
+        else:
+            self.router_ip_address = router_ip_address
 
+        print('\n**************************************')
+        print('Arduino Bridge - xiab')
+        print('Using router IP address: ' + self.router_ip_address)
+        print('**************************************')
+
+        print('\nTo specify some other address for the router, use the -r command line option')
+
+        # establish the zeriomq sub and pub sockets
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
-        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'command_publisher_port']
+        connect_string = "tcp://" + self.router_ip_address + ':' + port_map.port_map['subscribe_to_router_port']
         self.subscriber.connect(connect_string)
 
         # create the topic we wish to subscribe to
         env_string = "A" + self.board_num
         envelope = env_string.encode()
         self.subscriber.setsockopt(zmq.SUBSCRIBE, envelope)
+        # subscribe to broadcast i2c message - i2c messages can also be board specific with A + board number
+        self.subscriber.setsockopt(zmq.SUBSCRIBE, 'Q'.encode())
 
         self.publisher = self.context.socket(zmq.PUB)
-        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'reporter_publisher_port']
+        connect_string = "tcp://" + self.router_ip_address + ':' + port_map.port_map['publish_to_router_port']
 
         self.publisher.connect(connect_string)
 
@@ -97,9 +111,11 @@ class ArduinoBridge:
         self.command_dict = {'digital_pin_mode': self.setup_digital_pin, 'digital_write': self.digital_write,
                              'analog_pin_mode': self.setup_analog_pin, 'analog_write': self.analog_write,
                              'set_servo_position': self.set_servo_position, 'play_tone': self.play_tone,
-                             'tone_off': self.tone_off}
+                             'tone_off': self.tone_off, 'i2c_request': self.i2c_request}
 
         self.last_problem = ''
+
+        self.i2c_report_pending = False
 
     def setup_analog_pin(self):
         """
@@ -419,6 +435,43 @@ class ArduinoBridge:
         envelope = ("B" + self.board_num).encode()
         self.publisher.send_multipart([envelope, analog_reply_msg])
 
+    def i2c_request(self):
+        """
+        This method parses the i2c request and translates it to a native request
+        :return:
+        """
+        while self.i2c_report_pending:
+            self.board.sleep(.001)
+        cmd = self.payload['cmd']
+        addr = self.payload['device_address']
+
+        if cmd == 'init':
+            self.board.i2c_config()
+        elif cmd == 'write_byte':
+            # get handle
+            value = self.payload['value']
+            register = self.payload['register']
+            self.board.i2c_write_request(addr, [register, value])
+        elif cmd == 'read_block':
+            num_bytes = self.payload['num_bytes']
+            register = self.payload['register']
+            self.i2c_report_pending = True
+
+            self.board.i2c_read_request(addr, register, num_bytes, Constants.I2C_READ, self.report_i2c_data)
+            self.board.sleep(.001)
+        else:
+            print('unknown cmd')
+
+    def report_i2c_data(self, data):
+        # create a topic specific to the board number of this board
+        envelope = ("B" + self.board_num).encode()
+
+        msg = umsgpack.packb({u"command": "i2c_reply", u"board": self.board_num, u"data": data[2:]})
+
+        self.publisher.send_multipart([envelope, msg])
+        self.i2c_report_pending = False
+
+
     def run_arduino_bridge(self):
         """
         start the bridge
@@ -440,7 +493,7 @@ class ArduinoBridge:
                 else:
                     print("can't execute unknown command'")
                 self.board.sleep(.001)
-            except:
+            except zmq.error.Again:
                 self.board.sleep(.001)
             # return
 
@@ -484,8 +537,10 @@ class ArduinoBridge:
                         self.servo_capable.append(pin_count)
                     elif y == 6:
                         self.i2c_capable.append(pin_count)
+                    elif 7 < y < 14:
+                        pass
                     else:
-                        print('Unknown Pin Type ' + y)
+                        print('Unknown Pin Type ' + str(y))
                 # clear the pin_data list for the next pin and bump up the pin count
                 pin_data = []
                 # add an entry into the digital data dictionary
@@ -540,6 +595,8 @@ def arduino_bridge():
     parser = argparse.ArgumentParser()
     parser.add_argument("-b", dest="board_number", default="1", help="Board Number - 1 through 10")
     parser.add_argument("-p", dest="comport", default="None", help="Arduino COM port - e.g. /dev/ttyACMO or COM3")
+    parser.add_argument('-r', dest='router_ip_address', default='None', help='Router IP Address')
+
 
     args = parser.parse_args()
     if args.comport == "None":
@@ -548,7 +605,10 @@ def arduino_bridge():
         pymata_board = PyMata3(com_port=args.comport)
 
     board_num = args.board_number
-    abridge = ArduinoBridge(pymata_board, board_num)
+
+    router_ip_address = args.router_ip_address
+
+    abridge = ArduinoBridge(pymata_board, board_num, router_ip_address)
     # while True:
     abridge.run_arduino_bridge()
 
