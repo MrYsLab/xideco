@@ -651,7 +651,6 @@ def beaglebone_bridge():
 
     bb_bridge = BeagleBoneBridge(board_num, board_type, servo_polarity, router_ip_address)
 
-    router_ip_address = args.router_ip_address
     try:
         bb_bridge.run_bb_bridge()
     except KeyboardInterrupt:

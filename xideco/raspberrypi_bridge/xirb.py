@@ -114,7 +114,7 @@ class RaspberryPiBridge:
         else:
             self.router_ip_address = router_ip_address
 
-        print('Xideco Rapsberry Pi Bridge - xirp')
+        print('Xideco Raspberry Pi Bridge - xirp')
         print('\n**************************************')
         print('Using router IP address: ' + self.router_ip_address)
         print('**************************************')
@@ -460,7 +460,6 @@ class RaspberryPiBridge:
             try:
                 z = self.subscriber.recv_multipart(zmq.NOBLOCK)
 
-                #print(z)
                 self.payload = umsgpack.unpackb(z[1])
 
                 command = self.payload['command']

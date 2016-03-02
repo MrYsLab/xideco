@@ -259,6 +259,8 @@ class ADXL345(threading.Thread):
                     board = int(board[1:])
                     self.payload = umsgpack.unpackb(msg[1])
 
+                    if not 'data' in self.payload:
+                        continue
                     raw = self.payload['data']
 
                     # mask off bits not being used
@@ -381,16 +383,16 @@ class ADXL345(threading.Thread):
 
 # a sample callback routine
 def data_callback(data):
-    p = data['pitch'] * math.pi / 180
-    r = data['roll'] * math.pi / 180
+    p = data['pitch']
+    r = data['roll']
     print('Pitch: {0}, Roll: {1}.'.format(p, r))
     # print('Pitch: {0}, Roll: {1}.'.format(r, p))
     # print(data['x_raw'], data['y_raw'], data['z_raw'])
     # print(data['x_a'], data['y_a'], data['z_a'])
 
 
-# instantiate the device forcing the routing IP address and sending the data publisher envelope to 'z'
-device = ADXL345('192.168.2.192', data_publish_envelope='z')
+# instantiate the device forcing the routing IP address and setting the data publisher envelope to 'z'
+device = ADXL345('192.168.2.193', data_publish_envelope='z')
 
 try:
 
@@ -404,7 +406,6 @@ try:
     for x in range(0, 10):
         device.read_device()
         print(device.get_last_data())
-        time.sleep(.1)
 
     print("continuous callback for 3 seconds")
 
@@ -426,7 +427,7 @@ try:
     device.start_continuous(.001)
     time.sleep(3)
 
-    # Halt and then read read the last data reported
+    # Halt and then read the last data reported
     print('halting and reading the last value reported then wait 2 seconds')
     device.stop_continuous()
     print(device.get_last_data())

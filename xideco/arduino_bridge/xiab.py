@@ -436,6 +436,10 @@ class ArduinoBridge:
         self.publisher.send_multipart([envelope, analog_reply_msg])
 
     def i2c_request(self):
+        """
+        This method parses the i2c request and translates it to a native request
+        :return:
+        """
         while self.i2c_report_pending:
             self.board.sleep(.001)
         cmd = self.payload['cmd']
@@ -533,8 +537,10 @@ class ArduinoBridge:
                         self.servo_capable.append(pin_count)
                     elif y == 6:
                         self.i2c_capable.append(pin_count)
+                    elif 7 < y < 14:
+                        pass
                     else:
-                        print('Unknown Pin Type ' + y)
+                        print('Unknown Pin Type ' + str(y))
                 # clear the pin_data list for the next pin and bump up the pin count
                 pin_data = []
                 # add an entry into the digital data dictionary

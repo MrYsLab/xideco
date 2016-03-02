@@ -38,7 +38,7 @@ class HttpBridge:
     This is an HTTP bridge that translates Scratch HTTP requests into xideco protocol messages
    """
 
-    def __init__(self, router_ip_address = None):
+    def __init__(self, router_ip_address=None):
         """
         This is the constructor for the xideco HTTP bridge
         :return:
@@ -50,7 +50,6 @@ class HttpBridge:
         self.base_path = None
 
         self.router_ip_address = router_ip_address
-
 
         # establish the zeriomq sub and pub sockets
 
@@ -70,7 +69,7 @@ class HttpBridge:
             print('Cannot locate xideco configuration directory.')
             sys.exit(0)
 
-        if self.router_ip_address == 'None' :
+        if self.router_ip_address == 'None':
             self.router_ip_address = port_map.port_map['router_ip_address']
         else:
             self.router_ip_address = router_ip_address
@@ -358,7 +357,10 @@ class HttpBridge:
                 board_num = address.decode()
                 board_num = board_num[1]
                 command = payload['command']
-                if command == 'problem':
+                # we will ignore any i2c_replies
+                if command == 'i2c_reply':
+                    continue
+                elif command == 'problem':
                     data_string = command + '/' + board_num + ' ' + payload['problem']
                 else:
                     pin = payload['pin']
@@ -415,7 +417,7 @@ def http_bridge():
     args = parser.parse_args()
     router_ip_address = args.router_ip_address
 
-
+    # noinspection PyShadowingNames
     http_bridge = HttpBridge(router_ip_address)
     # noinspection PyShadowingNames
     loop = asyncio.get_event_loop()
