@@ -358,15 +358,18 @@ class HttpBridge:
                 board_num = board_num[1]
                 command = payload['command']
                 # we will ignore any i2c_replies
-                if command == 'i2c_reply':
+                if command == 'i2c_reply' or command == 'i2c_request':
                     continue
                 elif command == 'problem':
                     data_string = command + '/' + board_num + ' ' + payload['problem']
                 else:
-                    pin = payload['pin']
-                    value = payload['value']
-                    data_string = command + '/' + board_num + '/' + pin + ' ' + value + '\n'
-                # print(data_string)
+                    if not 'pin' in payload:
+                        continue
+                    else:
+                        pin = payload['pin']
+                        value = payload['value']
+                        data_string = command + '/' + board_num + '/' + pin + ' ' + value + '\n'
+                    # print(data_string)
                 self.poll_reply += data_string
 
             except zmq.error.Again:
@@ -425,10 +428,9 @@ def http_bridge():
     # noinspection PyBroadException
     try:
         loop.run_until_complete(http_bridge.init(loop))
-    except:
+    except KeyboardInterrupt:
         # noinspection PyShadowingNames
         loop = asyncio.get_event_loop()
-
         sys.exit(0)
 
     # signal handler function called when Control-C occurs

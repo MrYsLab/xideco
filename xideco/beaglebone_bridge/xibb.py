@@ -486,10 +486,13 @@ class BeagleBoneBridge:
                 # print("[%s] %s" % (z[0], self.payload))
 
                 command = self.payload['command']
-                if command in self.command_dict:
+                if command == 'i2c_request':
+                    time.sleep(.001)
+                    continue
+                elif command in self.command_dict:
                     self.command_dict[command]()
                 else:
-                    print("can't execute unknown command'")
+                    print("can't execute unknown command", str(command))
                     # time.sleep(.001)
             except KeyboardInterrupt:
                 self.cleanup()
