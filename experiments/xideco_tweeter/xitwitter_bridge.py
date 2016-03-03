@@ -44,20 +44,26 @@ class TwitterBridge:
         :param board_num: Arduino Board Number (1-10)
         :return:
         """
-        # establish the zeriomq sub and pub sockets
 
+        # establish the zeriomq sub and pub sockets
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
         connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
-            'command_publisher_port']
+            'subscribe_to_router_port']
         self.subscriber.connect(connect_string)
 
-        self.payload = ""
-
-        # subscribe to the "twitter topic"
-        env_string = "A100"
+        # create the topic we wish to subscribe to
+        env_string = "A100" + self.board_num
         envelope = env_string.encode()
         self.subscriber.setsockopt(zmq.SUBSCRIBE, envelope)
+
+        self.publisher = self.context.socket(zmq.PUB)
+        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+            'publish_to_router_port']
+
+        self.publisher.connect(connect_string)
+
+        self.payload = ""
 
     def run_twitter_bridge(self):
 

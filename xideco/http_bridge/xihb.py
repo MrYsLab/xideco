@@ -19,7 +19,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
-
+import argparse
 import asyncio
 import configparser
 import os
@@ -38,7 +38,7 @@ class HttpBridge:
     This is an HTTP bridge that translates Scratch HTTP requests into xideco protocol messages
    """
 
-    def __init__(self):
+    def __init__(self, router_ip_address=None):
         """
         This is the constructor for the xideco HTTP bridge
         :return:
@@ -48,6 +48,10 @@ class HttpBridge:
         path = sys.path
 
         self.base_path = None
+
+        self.router_ip_address = router_ip_address
+
+        # establish the zeriomq sub and pub sockets
 
         # get the prefix
         prefix = sys.prefix
@@ -64,6 +68,18 @@ class HttpBridge:
         if not self.base_path:
             print('Cannot locate xideco configuration directory.')
             sys.exit(0)
+
+        if self.router_ip_address == 'None':
+            self.router_ip_address = port_map.port_map['router_ip_address']
+        else:
+            self.router_ip_address = router_ip_address
+
+        print('\n**************************************')
+        print('Scratch HTTP Bridge - xihb')
+        print('Using router IP address: ' + self.router_ip_address)
+        print('**************************************')
+
+        print('\nTo specify some other address for the router, use the -r command line option')
 
         print('\nScratch Project Files Located at:')
         print(self.base_path + '/data_files/scratch_files/projects\n')
@@ -118,13 +134,24 @@ class HttpBridge:
 
         srv = await loop.create_server(app.make_handler(), '127.0.0.1', 50208)
         self.loop = loop
-        # create a zeromq pair client
-        context = zmq.Context()
 
-        self.router_socket = context.socket(zmq.PAIR)
-        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map['http_port']
+        self.context = zmq.Context()
+        self.subscriber = self.context.socket(zmq.SUB)
+        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+            'subscribe_to_router_port']
+        self.subscriber.connect(connect_string)
 
-        self.router_socket.connect(connect_string)
+        # create the topics we wish to subscribe to
+        for x in range(1, 11):
+            env_string = "B" + str(x)
+            envelope = env_string.encode()
+            self.subscriber.setsockopt(zmq.SUBSCRIBE, envelope)
+
+        self.publisher = self.context.socket(zmq.PUB)
+        connect_string = "tcp://" + self.router_ip_address + ':' + port_map.port_map[
+            'publish_to_router_port']
+
+        self.publisher.connect(connect_string)
 
         app.router.add_route('GET', '/poll', self.poll)
         await self.keep_alive()
@@ -169,7 +196,7 @@ class HttpBridge:
 
         board = 'A' + board
         board = board.encode()
-        self.router_socket.send_multipart([board, command_msg])
+        self.publisher.send_multipart([board, command_msg])
 
         return web.Response(body="ok".encode('utf-8'))
 
@@ -313,7 +340,7 @@ class HttpBridge:
         """
         m_topic = 'A' + board
         topic = m_topic.encode()
-        self.router_socket.send_multipart([topic, message])
+        self.publisher.send_multipart([topic, message])
 
     async def keep_alive(self):
         """
@@ -324,19 +351,25 @@ class HttpBridge:
 
             # check for reporter messages
             try:
-                [address, contents] = self.router_socket.recv_multipart(zmq.NOBLOCK)
+                [address, contents] = self.subscriber.recv_multipart(zmq.NOBLOCK)
                 payload = umsgpack.unpackb(contents)
                 # print("[%s] %s" % (address, payload))
                 board_num = address.decode()
                 board_num = board_num[1]
                 command = payload['command']
-                if command == 'problem':
+                # we will ignore any i2c_replies
+                if command == 'i2c_reply' or command == 'i2c_request':
+                    continue
+                elif command == 'problem':
                     data_string = command + '/' + board_num + ' ' + payload['problem']
                 else:
-                    pin = payload['pin']
-                    value = payload['value']
-                    data_string = command + '/' + board_num + '/' + pin + ' ' + value + '\n'
-                # print(data_string)
+                    if not 'pin' in payload:
+                        continue
+                    else:
+                        pin = payload['pin']
+                        value = payload['value']
+                        data_string = command + '/' + board_num + '/' + pin + ' ' + value + '\n'
+                    # print(data_string)
                 self.poll_reply += data_string
 
             except zmq.error.Again:
@@ -380,17 +413,24 @@ class HttpBridge:
 def http_bridge():
     # noinspection PyShadowingNames
 
-    http_bridge = HttpBridge()
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-r', dest='router_ip_address', default='None', help='Router IP Address')
+
+    args = parser.parse_args()
+    router_ip_address = args.router_ip_address
+
+    # noinspection PyShadowingNames
+    http_bridge = HttpBridge(router_ip_address)
     # noinspection PyShadowingNames
     loop = asyncio.get_event_loop()
 
     # noinspection PyBroadException
     try:
         loop.run_until_complete(http_bridge.init(loop))
-    except:
+    except KeyboardInterrupt:
         # noinspection PyShadowingNames
         loop = asyncio.get_event_loop()
-
         sys.exit(0)
 
     # signal handler function called when Control-C occurs

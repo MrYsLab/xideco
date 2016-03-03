@@ -2,12 +2,12 @@ from setuptools import setup
 
 setup(
         name='xideco',
-        version='0.3.0',
+        version='0.4.0',
         packages=['xideco', 'xideco.data_files', 'xideco.data_files.port_map', 'xideco.data_files.configuration',
                   'xideco.data_files.scratch_files', 'xideco.data_files.scratch_files.projects',
                   'xideco.data_files.scratch_files.extensions', 'xideco.http_bridge', 'xideco.xideco_router',
                   'xideco.arduino_bridge', 'xideco.raspberrypi_bridge','xideco.beaglebone_bridge',
-                  'experiments', 'experiments.xideco_tweeter'],
+                  'experiments', 'experiments.xideco_tweeter','xideco.i2c.i2c_devices.adxl345'],
         install_requires=['pymata-aio>=2.8',
                           'aiohttp>=0.19.0',
                           'pyzmq>=15.1.0',
@@ -22,7 +22,8 @@ setup(
                 'xihb = xideco.http_bridge.xihb:http_bridge',
                 'xirt = xideco.xideco_router.xirt:xideco_router',
                 'xirb = xideco.raspberrypi_bridge.xirb:raspberrypi_bridge',
-                'xibb = xideco.beaglebone_bridge.xibb:beaglebone_bridge'
+                'xibb = xideco.beaglebone_bridge.xibb:beaglebone_bridge',
+                'xibbi2c = xideco.beaglebone_bridge.xibbi2c:beaglebone_bridge'
             ]
         },
         url='https://github.com/MrYsLab/xideco/wiki',

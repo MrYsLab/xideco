@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Created on January 9 11:39:15 2016
+Created on February 15 10:29:15 2016
 
 @author: Alan Yorinks
 Copyright (c) 2016 Alan Yorinks All right reserved.
@@ -20,18 +20,33 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 
-"""
-This file contains a dictionary specifying various IP port numbers used with ZeroMQ sockets.
-"""
+# This is a sample program to monitor data being sent from adxl345.py using 'z' as the envelope.
 
-# This map contains the ip address of the computer currently running the router.
-# This address must be manually modified to match the IP address of the router computer.
-# All other entries are fixed and should not be modifified.
-
-# The publish_to_router_port should be used by all entities that wish to publish information.
-# the subscribe_to_router_port should be used by all entities that with to subscribe to messages. The
-# subscribers need to set a topic filter to receive the messages of interest.
+# The router IP address is hardcoded as well as the port number
+import umsgpack
+import zmq
+import time
+import sys
 
 
-port_map = {"router_ip_address": "192.168.2.193",
-            "publish_to_router_port": "43124", "subscribe_to_router_port": "43125"}
+context = zmq.Context()
+subscriber = context.socket(zmq.SUB)
+connect_string = 'tcp://192.168.2.192:43125'
+subscriber.connect(connect_string)
+
+env_string = 'z'
+envelope = env_string.encode()
+subscriber.setsockopt(zmq.SUBSCRIBE, envelope)
+
+while True:
+    try:
+        msg = subscriber.recv_multipart(zmq.NOBLOCK)
+        payload = umsgpack.unpackb(msg[1])
+        print(payload)
+    except KeyboardInterrupt:
+        subscriber.close()
+        context.term()
+        sys.exit(0)
+    except zmq.error.Again:
+        time.sleep(.001)
+
