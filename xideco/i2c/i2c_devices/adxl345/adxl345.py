@@ -391,52 +391,57 @@ def data_callback(data):
     # print(data['x_a'], data['y_a'], data['z_a'])
 
 
-# instantiate the device forcing the routing IP address and setting the data publisher envelope to 'z'
-device = ADXL345('192.168.2.193', data_publish_envelope='z')
+def adxl345(router_address):
+    # instantiate the device forcing the routing IP address and setting the data publisher envelope to 'z'
+    device = ADXL345(router_address, data_publish_envelope='z')
 
-try:
+    try:
 
-    # poll data for 10 iterations
-    print("polling 10 times")
+        # poll data for 10 iterations
+        print("polling 10 times")
 
-    # first initialize the device
-    device.initialize_device()
+        # first initialize the device
+        device.initialize_device()
 
-    # now poll ten times and print to the console
-    for x in range(0, 10):
-        device.read_device()
+        # now poll ten times and print to the console
+        for x in range(0, 10):
+            device.read_device()
+            print(device.get_last_data())
+
+        print("continuous callback for 3 seconds")
+
+        # to run continuous, initialize the device specifying a call back function
+        device.initialize_device(data_callback)
+
+        # start continuous operation with a delay after data reported of .001 seconds
+        device.start_continuous(.001)
+
+        time.sleep(3)
+
+        # we can halt the continuous operation by calling stop_continuous
+        print('halting for 3 seconds')
+        device.stop_continuous()
+        time.sleep(3)
+
+        # We can re-enable by calling start_continuous
+        print('enabling continuous for 3 seconds')
+        device.start_continuous(.001)
+        time.sleep(3)
+
+        # Halt and then read the last data reported
+        print('halting and reading the last value reported then wait 2 seconds')
+        device.stop_continuous()
         print(device.get_last_data())
+        time.sleep(2)
 
-    print("continuous callback for 3 seconds")
+        # we are out of here
+        print('exiting')
+        device.clean_up()
+        sys.exit(0)
+    except KeyboardInterrupt:
+        device.clean_up()
+        sys.exit(0)
 
-    # to run continuous, initialize the device specifying a call back function
-    device.initialize_device(data_callback)
 
-    # start continuous operation with a delay after data reported of .001 seconds
-    device.start_continuous(.001)
-
-    time.sleep(3)
-
-    # we can halt the continuous operation by calling stop_continuous
-    print('halting for 3 seconds')
-    device.stop_continuous()
-    time.sleep(3)
-
-    # We can re-enable by calling start_continuous
-    print('enabling continuous for 3 seconds')
-    device.start_continuous(.001)
-    time.sleep(3)
-
-    # Halt and then read the last data reported
-    print('halting and reading the last value reported then wait 2 seconds')
-    device.stop_continuous()
-    print(device.get_last_data())
-    time.sleep(2)
-
-    # we are out of here
-    print('exiting')
-    device.clean_up()
-    sys.exit(0)
-except KeyboardInterrupt:
-    device.clean_up()
-    sys.exit(0)
+if __name__ == "__main__":
+    adxl345("192.163.2.193")
