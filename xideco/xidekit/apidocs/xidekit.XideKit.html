@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+          "DTD/xhtml1-strict.dtd">
+<html>
+  <head>
+    <title>xidekit.XideKit : API documentation</title>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
+    <link href="apidocs.css" type="text/css" rel="stylesheet" />
+    
+    
+  </head>
+  <body>
+    <h1 class="class">x.XideKit : class documentation</h1>
+    <p>
+      <span id="part">Part of <a href="xidekit.html">xidekit</a></span>
+      
+      <a href="classIndex.html#xidekit.XideKit">View In Hierarchy</a>
+    </p>
+    <div>
+      
+    </div>
+    <div class="docstring">
+      <pre>This is a base class to be inherited by a derived Xideco application.
+
+To import use:
+
+    from xideco.xidekit.xidekit import XideKit
+
+Methods that may be overwritten:  the __init__ method, the receive_loop and incoming_message_processing</pre>
+    </div>
+
+    
+    <div id="splitTables">
+      <table class="children sortable" id="id2">
+  
+  
+  <tr class="method">
+    
+    
+    <td>Method</td>
+    <td><a href="xidekit.XideKit.html#__init__">__init__</a></td>
+    <td><tt>The __init__ method sets up all the ZeroMQ "plumbing"</tt></td>
+  </tr><tr class="method">
+    
+    
+    <td>Method</td>
+    <td><a href="xidekit.XideKit.html#set_subscriber_topic">set_subscriber_topic</a></td>
+    <td><tt>This method sets the subscriber topic.</tt></td>
+  </tr><tr class="method">
+    
+    
+    <td>Method</td>
+    <td><a href="xidekit.XideKit.html#publish_payload">publish_payload</a></td>
+    <td><tt>This method will publish a payload with the specified topic.</tt></td>
+  </tr><tr class="method">
+    
+    
+    <td>Method</td>
+    <td><a href="xidekit.XideKit.html#receive_loop">receive_loop</a></td>
+    <td><tt>This is the receive loop for zmq messages.</tt></td>
+  </tr><tr class="method">
+    
+    
+    <td>Method</td>
+    <td><a href="xidekit.XideKit.html#incoming_message_processing">incoming_message_processing</a></td>
+    <td><tt>Override this method with a message processor for the application</tt></td>
+  </tr><tr class="method">
+    
+    
+    <td>Method</td>
+    <td><a href="xidekit.XideKit.html#clean_up">clean_up</a></td>
+    <td><tt>Clean up before exiting - override if additional cleanup is necessary</tt></td>
+  </tr>
+</table>
+      
+    </div>
+    
+    
+
+    <div class="function">
+  <a name="xidekit.XideKit.__init__">
+    
+  </a>
+  <a name="__init__">
+    
+  </a>
+  <div class="functionHeader">
+    
+    def
+    __init__(self, router_ip_address=None, subscriber_port='43125', publisher_port='43124'):
+    
+  </div>
+  <div class="docstring functionBody">
+    
+    <pre>The __init__ method sets up all the ZeroMQ "plumbing"
+
+:param router_ip_address: Xideco Router IP Address - if not specified, it will be set to the local computer
+:param subscriber_port: Xideco router subscriber port. This must match that of the Xideco router
+:param publisher_port: Xideco router publisher port. This must match that of the Xideco router
+:return:</pre>
+  </div>
+</div><div class="function">
+  <a name="xidekit.XideKit.set_subscriber_topic">
+    
+  </a>
+  <a name="set_subscriber_topic">
+    
+  </a>
+  <div class="functionHeader">
+    
+    def
+    set_subscriber_topic(self, topic):
+    
+  </div>
+  <div class="docstring functionBody">
+    
+    <pre>This method sets the subscriber topic.
+
+You can subscribe to multiple topics by calling this method for
+each topic.
+:param topic: A topic string
+:return:</pre>
+  </div>
+</div><div class="function">
+  <a name="xidekit.XideKit.publish_payload">
+    
+  </a>
+  <a name="publish_payload">
+    
+  </a>
+  <div class="functionHeader">
+    
+    def
+    publish_payload(self, payload, topic=''):
+    
+  </div>
+  <div class="docstring functionBody">
+    
+    <pre>This method will publish a payload with the specified topic.
+
+:param topic: A string value
+:param payload: A dictionary of items
+:return:</pre>
+  </div>
+</div><div class="function">
+  <a name="xidekit.XideKit.receive_loop">
+    
+  </a>
+  <a name="receive_loop">
+    
+  </a>
+  <div class="functionHeader">
+    
+    def
+    receive_loop(self):
+    
+  </div>
+  <div class="docstring functionBody">
+    
+    <pre>This is the receive loop for zmq messages.
+
+It is assumed that this method will be overwritten to meet the needs of the application and to handle
+received messages.
+:return:</pre>
+  </div>
+</div><div class="function">
+  <a name="xidekit.XideKit.incoming_message_processing">
+    
+  </a>
+  <a name="incoming_message_processing">
+    
+  </a>
+  <div class="functionHeader">
+    
+    def
+    incoming_message_processing(self, topic, payload):
+    
+  </div>
+  <div class="docstring functionBody">
+    
+    <pre>Override this method with a message processor for the application
+
+:param topic: Message Topic string
+:param payload: Message Data
+:return:</pre>
+  </div>
+</div><div class="function">
+  <a name="xidekit.XideKit.clean_up">
+    
+  </a>
+  <a name="clean_up">
+    
+  </a>
+  <div class="functionHeader">
+    
+    def
+    clean_up(self):
+    
+  </div>
+  <div class="docstring functionBody">
+    
+    <pre>Clean up before exiting - override if additional cleanup is necessary
+
+:return:</pre>
+  </div>
+</div>
+    <address>
+      <a href="index.html">API Documentation</a> for xidekit, generated by <a href="https://github.com/twisted/pydoctor/">pydoctor</a> at 2016-03-25 15:30:21.
+    </address>
+  </body>
+</html>
