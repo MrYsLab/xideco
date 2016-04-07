@@ -21,6 +21,7 @@ License along with this library; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 """
 import time
+import sys
 
 from xideco.xidekit.xidekit import XideKit
 
@@ -34,7 +35,12 @@ message = 0
 # have both publishers send message with contents of the current message value
 # send a message every quarter of a second
 while True:
-    my_pub1.publish_payload({'info': message}, 'p1')
-    my_pub2.publish_payload({'info': message + 1}, 'p2')
-    message += 2
-    time.sleep(.25)
+    try:
+        my_pub1.publish_payload({'info': message}, 'p1')
+        print("Message sent from my_pub1 = {0}   Message sent from my_pub2 = {1}\n".format(message, message+1))
+        my_pub2.publish_payload({'info': message + 1}, 'p2')
+        message += 2
+        time.sleep(.25)
+    except KeyboardInterrupt:
+        sys.exit(0)
+

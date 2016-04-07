@@ -33,7 +33,6 @@ from xideco.xidekit.xidekit import XideKit
 class Gui(XideKit):
     def __init__(self, router_ip_address=None, subscriber_port='43125', publisher_port='43124'):
         """
-
         :param router_ip_address: ip address of router
         :param subscriber_port: router subscriber port
         :param publisher_port: router publisher port
@@ -45,7 +44,7 @@ class Gui(XideKit):
         self.root = Tk()
 
         # set the window title
-        self.root.title('Xideco Arduino/Gui Demo')
+        self.root.title('Simple XideKit Arduino/Gui Demo')
 
         # create the main frame, add a grid and configure the frame
         self.mainframe = ttk.Frame(self.root, padding="2 2 12 12")
@@ -126,6 +125,7 @@ class Gui(XideKit):
 
         # this should be an updated potentiometer value, so update the gui with the new value
         gui.pot.configure(text=command)
+
 
 
 if __name__ == '__main__':

@@ -25,10 +25,14 @@ import sys
 from xideco.xidekit.xidekit import XideKit
 
 
-class MySub(XideKit):
+class MyMonitor(XideKit):
     def __init__(self, router_ip_address=None, subscriber_port='43125', publisher_port='43124'):
         """
-        For this example we simply call the __init__ of the super class.
+        This method monitors all messages going through a Xideco router.
+        :param router_ip_address: Xideco Router IP Address - if not specified, it will be set to the local computer
+        :param subscriber_port: Xideco router subscriber port. This must match that of the Xideco router
+        :param publisher_port: Xideco router publisher port. This must match that of the Xideco router
+        :return:
         """
         super().__init__(router_ip_address, subscriber_port, publisher_port)
 
@@ -39,13 +43,13 @@ class MySub(XideKit):
         :param payload: Message content
         :return:
         """
-        print("Message From {0} : {1} \n".format(topic, payload['info']))
+        print(topic, payload)
 
 
 if __name__ == '__main__':
     try:
-        my_sub = MySub()
-        my_sub.set_subscriber_topic('p')
-        my_sub.receive_loop()
+        my_mon = MyMonitor()
+        my_mon.set_subscriber_topic('')
+        my_mon.receive_loop()
     except KeyboardInterrupt:
         sys.exit(0)

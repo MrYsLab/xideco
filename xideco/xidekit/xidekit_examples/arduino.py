@@ -49,7 +49,7 @@ class Arduino(XideKit):
         """
         super().__init__(router_ip_address, subscriber_port, publisher_port)
 
-        self.board = PyMata3()
+        self.board = PyMata3(3)
         self.board.set_pin_mode(self.BLUE_LED, Constants.OUTPUT)
         self.board.set_pin_mode(self.POTENTIOMETER, Constants.ANALOG, self.analog_callback)
 
@@ -61,7 +61,7 @@ class Arduino(XideKit):
         """
         value = str(data[self.DATA])
         self.publish_payload({'command': value}, "A")
-        self.board.sleep(.001)
+        self.board.sleep(.01)
 
     def receive_loop(self):
         """
@@ -74,10 +74,10 @@ class Arduino(XideKit):
             try:
                 data = self.subscriber.recv_multipart(zmq.NOBLOCK)
                 self.incoming_message_processing(data[0].decode(), umsgpack.unpackb(data[1]))
-                self.board.sleep(.001)
+                self.board.sleep(.01)
             except zmq.error.Again:
                 try:
-                    self.board.sleep(.001)
+                    self.board.sleep(.01)
                 except:
                     self.clean_up()
             except KeyboardInterrupt:
