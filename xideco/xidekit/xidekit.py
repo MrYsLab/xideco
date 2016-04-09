@@ -91,8 +91,8 @@ class XideKit:
         """
         This method will publish a payload with the specified topic.
 
-        :param topic: A string value
         :param payload: A dictionary of items
+        :param topic: A string value
         :return:
         """
         if not type(topic) is str:
@@ -146,6 +146,7 @@ class XideKit:
         self.subscriber.close()
         self.context.term()
         sys.exit(0)
+
 
 
 # this is a typical invocation of the class. The class is instantiated, topics are subscribed to, and

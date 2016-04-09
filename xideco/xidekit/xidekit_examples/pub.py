@@ -37,10 +37,9 @@ message = 0
 while True:
     try:
         my_pub1.publish_payload({'info': message}, 'p1')
-        print("Message sent from my_pub1 = {0}   Message sent from my_pub2 = {1}\n".format(message, message+1))
+        print("Message sent from my_pub1 = {0}   Message sent from my_pub2 = {1}\n".format(message, message + 1))
         my_pub2.publish_payload({'info': message + 1}, 'p2')
         message += 2
         time.sleep(.25)
     except KeyboardInterrupt:
         sys.exit(0)
-

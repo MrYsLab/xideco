@@ -33,6 +33,7 @@ import zmq
 from xideco.data_files.port_map import port_map
 
 
+# noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
 class HttpBridge:
     """
     This is an HTTP bridge that translates Scratch HTTP requests into xideco protocol messages
@@ -107,7 +108,7 @@ class HttpBridge:
         self.ln_OFF = config.get('translation_lists', 'ln_OFF').split(',')
         self.ln_ON = config.get('translation_lists', 'ln_ON').split(',')
 
-    # noinspection PyShadowingNames,PyAttributeOutsideInit,PyAttributeOutsideInit
+    # noinspection PyShadowingNames,PyAttributeOutsideInit,PyAttributeOutsideInit,PyUnresolvedReferences
     async def init(self, loop):
         """
         This method initializes the aiohttp server.
@@ -137,7 +138,7 @@ class HttpBridge:
 
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
-        connect_string = "tcp://" + port_map.port_map['router_ip_address'] + ':' + port_map.port_map[
+        connect_string = "tcp://" + self.router_ip_address + ':' + port_map.port_map[
             'subscribe_to_router_port']
         self.subscriber.connect(connect_string)
 
@@ -363,6 +364,7 @@ class HttpBridge:
                 elif command == 'problem':
                     data_string = command + '/' + board_num + ' ' + payload['problem']
                 else:
+                    # noinspection PyPep8
                     if not 'pin' in payload:
                         continue
                     else:
@@ -373,8 +375,7 @@ class HttpBridge:
                 self.poll_reply += data_string
 
             except zmq.error.Again:
-                pass
-            await asyncio.sleep(.001)
+                await asyncio.sleep(.001)
 
     async def check_cmd_enable_disable(self, command):
         """

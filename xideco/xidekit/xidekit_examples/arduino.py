@@ -30,6 +30,7 @@ from pymata_aio.pymata3 import PyMata3
 from xideco.xidekit.xidekit import XideKit
 
 
+# noinspection PyUnresolvedReferences,PyBroadException
 class Arduino(XideKit):
     """
     The Arduino class encapsulates a PyMata3 instance to control a digital output pin

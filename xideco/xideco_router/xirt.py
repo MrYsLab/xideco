@@ -30,6 +30,7 @@ import zmq
 from xideco.data_files.port_map import port_map
 
 
+# noinspection PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences,PyUnresolvedReferences
 class XidecoRouter:
     """
     This class consists of a PAIR connection to a control program bridge (i.e. - HTTP for Scratch),
@@ -82,10 +83,13 @@ class XidecoRouter:
         print('\nIf using the port map, port_map.py is located at:\n')
         print(self.base_path + '/data_files/port_map\n')
 
-        print('NOTE: The path to port_map.py may be different for each Operating System/Computer')
+        print('NOTE: The path to port_map.py may be different')
+        print('for each Operating System/Computer.')
 
-        print('\nSet the router_ip_address entry in port_map.py to the address printed above')
-        print('for each computer running Xideco, or optionally set the address manually for each Xideco module')
+        print('\nSet the router_ip_address entry in port_map.py ')
+        print('to the address printed above for each ')
+        print('computer running Xideco, or optionally ')
+        print('set the address manually for each Xideco module')
         print('using the command line options.\n')
 
         self.router = zmq.Context()
