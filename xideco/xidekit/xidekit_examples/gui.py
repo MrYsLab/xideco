@@ -124,7 +124,7 @@ class Gui(XideKit):
         command = payload['command']
 
         # this should be an updated potentiometer value, so update the gui with the new value
-        gui.pot.configure(text=command)
+        self.pot.configure(text=command)
 
 
 

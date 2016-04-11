@@ -145,7 +145,7 @@ class Gui(XideKit):
             data = str(payload['value'])
 
             # this should be an updated potentiometer value, so update the gui with the new value
-            gui.pot.configure(text=data)
+            self.pot.configure(text=data)
 
 
 if __name__ == '__main__':

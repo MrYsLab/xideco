@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
         name='xideco',
-        version='0.5.0',
+        version='0.5.1',
         packages=['xideco', 'xideco.data_files', 'xideco.data_files.port_map', 'xideco.data_files.configuration',
                   'xideco.data_files.scratch_files', 'xideco.data_files.scratch_files.projects',
                   'xideco.data_files.scratch_files.extensions', 'xideco.http_bridge', 'xideco.xideco_router',
