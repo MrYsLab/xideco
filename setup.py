@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
         name='xideco',
-        version='0.5.1',
+        version='0.5.2',
         packages=['xideco', 'xideco.data_files', 'xideco.data_files.port_map', 'xideco.data_files.configuration',
                   'xideco.data_files.scratch_files', 'xideco.data_files.scratch_files.projects',
                   'xideco.data_files.scratch_files.extensions', 'xideco.http_bridge', 'xideco.xideco_router',
@@ -12,8 +12,7 @@ setup(
         install_requires=['pymata-aio>=2.8',
                           'aiohttp>=0.19.0',
                           'pyzmq>=15.1.0',
-                          'umsgpack>=0.1.0',
-                          'Adafruit_BBIO'],
+                          'umsgpack>=0.1.0'],
         package_data={'xideco.data_files': [('configuration/*'),
                                             ('scratch_files/extensions/*.s2e'),
                                             ('scratch_files/projects/*.sb2')]},

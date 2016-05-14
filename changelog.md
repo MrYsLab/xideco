@@ -1,5 +1,18 @@
 # Change Log
 
+## Version 0.5.2
+
+* Removed Adafruit BBIO library from setup.py. Library now has to be installed seperately to allow a 
+successful Windows install.
+
+## Version 0.5.1
+
+* Modified gui.py and gui2.py for a minor bug fix. Updated XideKit tutorial to reflect those changes and some typos.
+
+## Version 0.5.0
+
+* This release introduces the XideKit API class for developing network distributed applications.
+
 ## Version 0.4.0
 
 * Major Changes
